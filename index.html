@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Alert System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#fff;--bg2:#f5f5f3;--bg3:#eeede9;--text:#1a1a18;--text2:#6b6a65;--text3:#9a9992;--border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);--green:#1D9E75;--green-bg:#E1F5EE;--green-text:#085041;--amber:#BA7517;--amber-bg:#FAEEDA;--amber-text:#633806;--red:#D85A30;--red-bg:#FCEBEB;--red-text:#791F1F;--blue:#378ADD;--blue-bg:#E6F1FB;--blue-text:#0C447C;--purple:#7F77DD;--gray:#B4B2A9;}
+@media(prefers-color-scheme:dark){:root{--bg:#1e1e1c;--bg2:#2a2a28;--bg3:#323230;--text:#f0efe9;--text2:#9a9992;--text3:#6b6a65;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.22);--green-bg:#04342C;--green-text:#9FE1CB;--amber-bg:#412402;--amber-text:#FAC775;--red-bg:#501313;--red-text:#F09595;--blue-bg:#042C53;--blue-text:#B5D4F4;}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;}
+.header{background:var(--bg);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:100;}
+.header h1{font-size:15px;font-weight:500;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.tabs{display:flex;gap:2px;background:var(--bg2);border-radius:8px;padding:3px;}
+.tab{padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--text2);border:none;background:transparent;transition:background .15s;}
+.tab.active{background:var(--bg);color:var(--text);font-weight:500;}
+.page{display:none;}.page.active{display:block;}
+.container{max-width:1100px;margin:0 auto;padding:20px 16px;}
+.top-bar{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+input,select,textarea{padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none;font-family:inherit;}
+input[type=text]{text-transform:uppercase;}
+input:focus,select:focus{border-color:var(--blue);}
+.btn{padding:7px 16px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--text);font-size:13px;cursor:pointer;transition:background .15s;}
+.btn:hover{background:var(--bg2);}
+.btn-p{background:var(--text);color:var(--bg);border-color:var(--text);}
+.btn-p:hover{opacity:.85;}
+.btn-p:disabled{opacity:.4;cursor:not-allowed;}
+.btn-g{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-r{background:var(--red);color:#fff;border-color:var(--red);}
+.btn-sm{padding:4px 10px;font-size:12px;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:16px;}
+.metric{background:var(--bg2);border-radius:8px;padding:10px 14px;}
+.metric .lbl{font-size:11px;color:var(--text2);margin-bottom:4px;}
+.metric .val{font-size:20px;font-weight:500;}
+.pos{color:var(--green);}.neg{color:var(--red);}.neu{color:var(--text);}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;}
+.alert-box{border-radius:12px;padding:14px 18px;margin-bottom:16px;border:1px solid;}
+.a-launch{background:var(--green-bg);border-color:var(--green);color:var(--green-text);}
+.a-watch{background:var(--amber-bg);border-color:var(--amber);color:var(--amber-text);}
+.a-wait{background:var(--bg2);border-color:var(--border);color:var(--text2);}
+.a-err{background:var(--red-bg);border-color:var(--red);color:var(--red-text);}
+.a-title{font-size:15px;font-weight:500;margin-bottom:4px;}
+.a-sub{font-size:13px;opacity:.85;line-height:1.5;}
+.sig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;}
+.sig{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);font-size:13px;}
+.sig .sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dg{background:var(--green);}.dy{background:var(--amber);}.dn{background:var(--gray);}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text2);margin-bottom:8px;}
+.ll{width:16px;height:2px;display:inline-block;vertical-align:middle;margin-right:3px;}
+.log{background:var(--bg2);border-radius:8px;padding:10px 14px;max-height:110px;overflow-y:auto;}
+.le{font-size:12px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border);}
+.le:last-child{border-bottom:none;}
+.le.good{color:var(--green);}.le.warn{color:var(--amber);}.le.sms{color:var(--blue);}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;}
+.b-live{background:var(--green-bg);color:var(--green-text);}
+.b-sim{background:var(--amber-bg);color:var(--amber-text);}
+.b-sms{background:var(--blue-bg);color:var(--blue-text);}
+.wchip{padding:5px 12px;border:1px solid var(--border2);border-radius:20px;font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2);}
+.wchip:hover,.wchip.active{background:var(--text);color:var(--bg);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:700px){.grid2{grid-template-columns:1fr;}}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2);font-weight:500;font-size:12px;white-space:nowrap;}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+tr:hover td{background:var(--bg2);}
+.tbl-wrap{overflow-x:auto;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.stat-card{background:var(--bg2);border-radius:8px;padding:12px 14px;}
+.stat-card .lbl{font-size:11px;color:var(--text2);margin-bottom:4px;}
+.stat-card .val{font-size:22px;font-weight:500;}
+.jnl-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px;}
+.jnl-form label,.settings-label{font-size:11px;color:var(--text2);display:block;margin-bottom:4px;}
+.step-item{display:flex;gap:12px;margin-bottom:18px;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--bg2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--text2);flex-shrink:0;margin-top:2px;}
+.step-title{font-size:13px;font-weight:500;margin-bottom:3px;}
+.step-desc{font-size:12px;color:var(--text2);line-height:1.6;}
+code{font-family:monospace;font-size:12px;background:var(--bg2);padding:2px 6px;border-radius:4px;}
+.code-block{background:var(--bg2);border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:12px;line-height:1.7;overflow-x:auto;white-space:pre;}
+.sms-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px;}
+.toggle-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:8px;margin-bottom:12px;}
+.toggle{width:38px;height:22px;background:var(--gray);border-radius:11px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--green);}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .2s;}
+.toggle.on::after{left:19px;}
+hr.div{border:none;border-top:1px solid var(--border);margin:1.5rem 0;}
+a{color:var(--blue);}
+footer{text-align:center;padding:24px;font-size:12px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="live-dot"></span>Stock Alert System</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('alerts',this)">Alerts</button>
+    <button class="tab" onclick="showPage('journal',this)">Trade journal</button>
+    <button class="tab" onclick="showPage('sms',this)">SMS setup</button>
+    <button class="tab" onclick="showPage('settings',this)">Settings</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <span id="src-badge" class="badge b-live">Finnhub · Live Data</span>
+    <span id="sms-badge" class="badge b-sms" style="display:none;">SMS on</span>
+    <span id="last-upd" style="font-size:12px;color:var(--text2);"></span>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div id="page-alerts" class="page active">
+<div class="container">
+  <div class="top-bar">
+    <input type="text" id="ticker-in" value="AAPL" maxlength="6" placeholder="TICKER" onkeydown="if(event.key==='Enter')loadStock()" oninput="this.value=this.value.toUpperCase()"/>
+    <select id="interval"><option value="15min" selected>15 min</option><option value="60min">1 hour</option><option value="daily">Daily</option></select>
+    <button class="btn btn-p" id="analyze-btn" onclick="loadStock()">Analyze</button>
+    <button class="btn" id="auto-btn" onclick="toggleAuto()">Auto: Off</button>
+    <span style="font-size:11px;color:var(--green-text);background:var(--green-bg);padding:3px 8px;border-radius:20px;">Finnhub · Direct · ~15min delay</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;align-items:center;">
+    <span style="font-size:11px;color:var(--text3);">Watchlist:</span>
+    <div id="watchlist" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    <button class="btn btn-sm" onclick="addToWatchlist()" title="Add current ticker to watchlist">+ Add</button>
+    <button class="btn btn-sm" onclick="resetWatchlist()" title="Reset to defaults">Reset</button>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Click any chip to analyze · Right-click to remove</div>
+  <div class="metrics">
+    <div class="metric"><div class="lbl">Price</div><div class="val neu" id="m-price">—</div></div>
+    <div class="metric"><div class="lbl">Change</div><div class="val neu" id="m-chg">—</div></div>
+    <div class="metric"><div class="lbl">RSI (14)</div><div class="val neu" id="m-rsi">—</div></div>
+    <div class="metric"><div class="lbl">MACD</div><div class="val neu" id="m-macd">—</div></div>
+    <div class="metric"><div class="lbl">Vol ratio</div><div class="val neu" id="m-vol">—</div></div>
+    <div class="metric"><div class="lbl">BB %</div><div class="val neu" id="m-bb">—</div></div>
+    <div class="metric"><div class="lbl">Signals</div><div class="val neu" id="m-score">—</div></div>
+  </div>
+  <div id="alert-box" class="alert-box a-wait">
+    <div class="a-title">Ready — enter a ticker and click Analyze</div>
+    <div class="a-sub">Real prices via Finnhub API · Direct browser call · No proxy · ~15 min delay · Stocks, ETFs, leveraged ETFs (TQQQ etc)</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Price · MA20 · MA50 · Bollinger Bands</div>
+      <div class="legend"><span><span class="ll" style="background:#378ADD;"></span>Price</span><span><span class="ll" style="background:#1D9E75;"></span>MA20</span><span><span class="ll" style="background:#D85A30;"></span>MA50</span><span><span class="ll" style="background:#B4B2A9;border-top:1px dashed #B4B2A9;"></span>BB</span></div>
+      <div style="position:relative;width:100%;height:240px;"><canvas id="price-chart" role="img" aria-label="Price chart with moving averages and Bollinger Bands"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">RSI · MACD · Signal line</div>
+      <div class="legend"><span><span class="ll" style="background:#7F77DD;"></span>RSI</span><span><span class="ll" style="background:#378ADD;"></span>MACD</span><span><span class="ll" style="background:#D85A30;border-top:1px dashed;"></span>Signal</span></div>
+      <div style="position:relative;width:100%;height:240px;"><canvas id="osc-chart" role="img" aria-label="RSI and MACD oscillator chart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Signal breakdown — 4+ green = launch alert · 2–3 = watch</div>
+    <div class="sig-grid" id="sig-grid">
+      <div class="sig"><div class="dot dn"></div><div><div>RSI oversold</div><div class="sub">RSI &lt; 35</div></div></div>
+      <div class="sig"><div class="dot dn"></div><div><div>MACD crossover</div><div class="sub">MACD crosses signal line</div></div></div>
+      <div class="sig"><div class="dot dn"></div><div><div>MA crossover</div><div class="sub">MA20 crosses above MA50</div></div></div>
+      <div class="sig"><div class="dot dn"></div><div><div>Volume surge</div><div class="sub">1.8x 20-bar avg volume</div></div></div>
+      <div class="sig"><div class="dot dn"></div><div><div>Near BB lower</div><div class="sub">BB position &lt; 20%</div></div></div>
+      <div class="sig"><div class="dot dn"></div><div><div>Price off lows</div><div class="sub">0–8% above 20-bar low</div></div></div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <span style="font-size:12px;color:var(--text2);">Alert log</span>
+    <button class="btn btn-sm" onclick="document.getElementById('log').innerHTML='<div class=le>Log cleared.</div>'">Clear</button>
+  </div>
+  <div class="log" id="log"><div class="le">Waiting for first scan...</div></div>
+</div>
+</div>
+
+<!-- JOURNAL -->
+<div id="page-journal" class="page">
+<div class="container">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="lbl">Total trades</div><div class="val neu" id="j-total">0</div></div>
+    <div class="stat-card"><div class="lbl">Win rate</div><div class="val neu" id="j-winrate">—</div></div>
+    <div class="stat-card"><div class="lbl">Total P&amp;L</div><div class="val neu" id="j-pnl">$0</div></div>
+    <div class="stat-card"><div class="lbl">Avg win</div><div class="val pos" id="j-avgwin">—</div></div>
+    <div class="stat-card"><div class="lbl">Avg loss</div><div class="val neg" id="j-avgloss">—</div></div>
+    <div class="stat-card"><div class="lbl">Open trades</div><div class="val neu" id="j-open">0</div></div>
+  </div>
+
+  <!-- ATR STOP-LOSS CALCULATOR -->
+  <div class="card" style="border:1.5px solid var(--blue);">
+    <div class="card-title" style="color:var(--blue-text);">Stop-loss &amp; target calculator — powered by ATR</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;">
+      ATR (Average True Range) measures how much a stock typically moves per bar. We use it to set a stop-loss that is outside normal noise, and a target at 2:1 and 3:1 reward-to-risk so you always know your max loss before entering.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;">
+      <div><label class="settings-label">Ticker</label><input type="text" id="atr-ticker" placeholder="TQQQ" style="width:100%;"/></div>
+      <div><label class="settings-label">Entry price ($)</label><input type="number" id="atr-entry" placeholder="62.50" step="0.01" style="width:100%;text-transform:none;" oninput="recomputeATR()"/></div>
+      <div><label class="settings-label">Direction</label><select id="atr-dir" style="width:100%;" onchange="recomputeATR()"><option value="Long">Long (buy)</option><option value="Short">Short (sell)</option></select></div>
+      <div><label class="settings-label">Account size ($)</label><input type="number" id="atr-account" placeholder="10000" style="width:100%;text-transform:none;" oninput="recomputeATR()"/></div>
+      <div><label class="settings-label">Risk per trade (%)</label><input type="number" id="atr-risk" placeholder="1" step="0.1" min="0.1" max="5" style="width:100%;text-transform:none;" oninput="recomputeATR()"/></div>
+      <div><label class="settings-label">ATR multiplier</label><select id="atr-mult" style="width:100%;" onchange="recomputeATR()"><option value="1">1× ATR (tight)</option><option value="1.5" selected>1.5× ATR (standard)</option><option value="2">2× ATR (wide)</option></select></div>
+    </div>
+    <button class="btn btn-p" id="atr-calc-btn" onclick="calcATR()">Calculate stop-loss &amp; targets</button>
+    <div id="atr-loading" style="font-size:12px;color:var(--text2);margin-top:8px;display:none;">Fetching price data to compute ATR...</div>
+
+    <div id="atr-result" style="display:none;margin-top:14px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
+        <div class="stat-card"><div class="lbl">ATR (14-bar)</div><div class="val neu" id="atr-val">—</div></div>
+        <div class="stat-card"><div class="lbl">Stop-loss</div><div class="val neg" id="atr-stop">—</div></div>
+        <div class="stat-card"><div class="lbl">Risk per share</div><div class="val neg" id="atr-rps">—</div></div>
+        <div class="stat-card"><div class="lbl">Position size</div><div class="val neu" id="atr-qty">—</div></div>
+        <div class="stat-card"><div class="lbl">Max $ risk</div><div class="val neg" id="atr-maxrisk">—</div></div>
+        <div class="stat-card"><div class="lbl">Target 2:1</div><div class="val pos" id="atr-t1">—</div></div>
+        <div class="stat-card"><div class="lbl">Target 3:1</div><div class="val pos" id="atr-t2">—</div></div>
+        <div class="stat-card"><div class="lbl">Profit at 2:1</div><div class="val pos" id="atr-p1">—</div></div>
+      </div>
+      <div id="atr-explanation" style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;"></div>
+      <button class="btn btn-g" onclick="prefillFromATR()">Use these values → Log trade</button>
+    </div>
+  </div>
+
+  <!-- LOG TRADE FORM -->
+  <div class="card">
+    <div class="card-title">Log a trade</div>
+    <div class="jnl-form">
+      <div><label>Ticker</label><input type="text" id="j-ticker" placeholder="AAPL" style="width:100%;"/></div>
+      <div><label>Direction</label><select id="j-dir" style="width:100%;"><option>Long</option><option>Short</option></select></div>
+      <div><label>Entry price ($)</label><input type="number" id="j-entry" placeholder="0.00" step="0.01" style="width:100%;text-transform:none;"/></div>
+      <div><label>Shares / qty</label><input type="number" id="j-qty" placeholder="10" style="width:100%;text-transform:none;"/></div>
+      <div><label>Stop-loss ($)</label><input type="number" id="j-stop" placeholder="0.00" step="0.01" style="width:100%;text-transform:none;"/></div>
+      <div><label>Target ($)</label><input type="number" id="j-target" placeholder="0.00" step="0.01" style="width:100%;text-transform:none;"/></div>
+      <div><label>Signal score</label><select id="j-score" style="width:100%;"><option value="6">6/6 — Launch</option><option value="5">5/6 — Launch</option><option value="4">4/6 — Launch</option><option value="3">3/6 — Watch</option><option value="2">2/6 — Watch</option><option value="1">1/6 — Manual</option></select></div>
+      <div><label>Notes</label><input type="text" id="j-notes" placeholder="e.g. RSI bounce off 28" style="width:100%;text-transform:none;"/></div>
+    </div>
+    <button class="btn btn-p" onclick="addTrade()">Add trade</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div class="card-title" style="margin:0;">Trade history</div>
+      <button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Ticker</th><th>Dir</th><th>Entry</th><th>Exit</th><th>Qty</th><th>Stop</th><th>Target</th><th>P&amp;L</th><th>R:R</th><th>Score</th><th>Notes</th><th>Action</th></tr></thead>
+        <tbody id="jnl-body"><tr><td colspan="13" style="text-align:center;color:var(--text3);padding:24px;">No trades yet. Use the calculator above then click "Log trade".</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SMS SETUP -->
+<div id="page-sms" class="page">
+<div class="container">
+  <div class="card">
+    <div class="card-title">Get free SMS alerts via Twilio — 5 min setup</div>
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div><div class="step-title">Create a free Twilio account</div><div class="step-desc">Go to <a href="https://www.twilio.com/try-twilio" target="_blank">twilio.com/try-twilio</a> and sign up. No credit card required. You get $15 trial credit — enough for hundreds of SMS messages.</div></div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div><div class="step-title">Verify your phone number</div><div class="step-desc">During signup Twilio asks you to verify your personal number. On the free trial you can only send SMS to verified numbers. This is the number that will receive your alerts.</div></div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div><div class="step-title">Get a Twilio phone number (free on trial)</div><div class="step-desc">In the Twilio Console go to Phone Numbers → Manage → Buy a Number. Pick any number with SMS capability. This is your "From" number.</div></div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div><div class="step-title">Create a Twilio Function as SMS proxy</div><div class="step-desc">In the Twilio Console go to <strong>Functions &amp; Assets → Services → Create Service</strong>. Name it <code>sms-alert</code>. Add a function at path <code>/send</code> and paste this code, then click Deploy:</div>
+        <div class="code-block">exports.handler = function(context, event, callback) {
+  const client = context.getTwilioClient();
+  client.messages.create({
+    body: event.body,
+    from: event.from,
+    to: event.to
+  }).then(msg => callback(null, { sid: msg.sid }))
+    .catch(err => callback(err));
+};</div>
+        <div class="step-desc" style="margin-top:8px;">After deploying, copy the Function URL — it looks like <code>https://sms-alert-XXXX.twil.io/send</code>. Paste it below.</div>
+      </div>
+    </div>
+    <hr class="div"/>
+    <div class="card-title">Enter your Twilio credentials</div>
+    <div class="sms-form">
+      <div><label class="settings-label">Twilio Function URL</label><input type="text" id="twilio-url" placeholder="https://sms-alert-XXXX.twil.io/send" style="width:100%;text-transform:none;"/></div>
+      <div><label class="settings-label">Your Twilio number (from)</label><input type="tel" id="twilio-from" placeholder="+15551234567" style="width:100%;text-transform:none;"/></div>
+      <div><label class="settings-label">Your personal number (to)</label><input type="tel" id="twilio-to" placeholder="+15559876543" style="width:100%;text-transform:none;"/></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle" id="sms-toggle" onclick="toggleSMS()"></div>
+      <div><div style="font-size:13px;font-weight:500;" id="sms-label">SMS alerts: off</div><div style="font-size:12px;color:var(--text2);">Launch signal = full alert · Watch signal = heads-up</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-p" onclick="saveSMS()">Save &amp; enable</button>
+      <button class="btn" onclick="testSMS()">Send test SMS</button>
+    </div>
+    <div id="sms-status" style="font-size:12px;color:var(--text2);margin-top:10px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">SMS message previews</div>
+    <div style="display:grid;gap:10px;">
+      <div style="background:var(--green-bg);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--green-text);line-height:1.7;"><strong>LAUNCH ALERT — AAPL 4/6 signals</strong><br>Price: $213.50 · RSI: 29.4 · MACD cross · Vol 2.1x avg<br>Potential reversal detected. Check your chart.<br><em style="font-size:11px;">Not financial advice.</em></div>
+      <div style="background:var(--amber-bg);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--amber-text);line-height:1.7;"><strong>WATCH ALERT — AAPL 2/6 signals</strong><br>Price: $213.50 · RSI: 38.1<br>Building momentum — not at full confluence yet.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div id="page-settings" class="page">
+<div class="container">
+  <div class="card">
+    <div class="card-title">Finnhub API key</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <input type="text" id="fh-key-in" placeholder="Paste Finnhub key..." style="flex:1;min-width:220px;font-family:monospace;font-size:12px;text-transform:none;letter-spacing:1px;"/>
+      <button class="btn btn-p" onclick="saveFHKey()">Save</button>
+      <button class="btn" onclick="testFHKey()">Test key</button>
+      <a href="https://finnhub.io/dashboard" target="_blank" class="btn">Finnhub dashboard →</a>
+    </div>
+    <div id="fh-key-status" style="font-size:12px;color:var(--text2);"></div>
+    <div style="margin-top:10px;background:var(--green-bg);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green-text);line-height:1.6;">
+      <strong>Finnhub free tier:</strong> Direct browser call · No proxy · 60 calls/min · Real 15-min delayed prices for US stocks, ETFs, leveraged ETFs (TQQQ, SOXL etc).<br>
+      Get a free key at <a href="https://finnhub.io" target="_blank" style="color:inherit;font-weight:500;">finnhub.io</a> → Sign up → Dashboard → copy API key.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Alert thresholds</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;">
+      <div><label class="settings-label">RSI oversold threshold (default 35)</label><input type="number" id="cfg-rsi" value="35" min="10" max="50" style="width:100%;text-transform:none;"/></div>
+      <div><label class="settings-label">Volume surge multiplier (default 1.8x)</label><input type="number" id="cfg-vol" value="1.8" min="1" max="5" step="0.1" style="width:100%;text-transform:none;"/></div>
+      <div><label class="settings-label">BB % lower threshold (default 20)</label><input type="number" id="cfg-bb" value="20" min="5" max="40" style="width:100%;text-transform:none;"/></div>
+      <div><label class="settings-label">Price off low max % (default 8)</label><input type="number" id="cfg-pol" value="8" min="1" max="20" style="width:100%;text-transform:none;"/></div>
+    </div>
+    <button class="btn btn-p" onclick="saveConfig()">Save thresholds</button>
+    <span id="cfg-status" style="font-size:12px;color:var(--green);margin-left:10px;"></span>
+  </div>
+  <div class="card">
+    <div class="card-title">Data &amp; storage</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="exportCSV()">Export journal CSV</button>
+      <button class="btn btn-r" onclick="if(confirm('Clear all trades?')){trades=[];saveTrades();renderJournal();addLog('Journal cleared.');}">Clear journal</button>
+      <button class="btn btn-r" onclick="if(confirm('Reset everything?')){localStorage.clear();location.reload();}">Reset all</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<footer>Stock Alert System · Finnhub · Twilio · Not financial advice · Educational use only</footer>
+
+<script>
+let cfg=JSON.parse(localStorage.getItem('cfg')||'{"rsi":35,"vol":1.8,"bb":20,"pol":8}');
+let trades=JSON.parse(localStorage.getItem('trades')||'[]');
+let smsOn=localStorage.getItem('sms_on')==='true';
+let pChart,oChart,autoTimer=null,autoOn=false,lastAlertLevel='';
+
+// startup runs at bottom after all functions defined
+
+function showPage(p,btn){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  btn.classList.add('active');
+  if(p==='journal')renderJournal();
+}
+
+function saveConfig(){cfg={rsi:parseFloat(document.getElementById('cfg-rsi').value),vol:parseFloat(document.getElementById('cfg-vol').value),bb:parseFloat(document.getElementById('cfg-bb').value),pol:parseFloat(document.getElementById('cfg-pol').value)};localStorage.setItem('cfg',JSON.stringify(cfg));const s=document.getElementById('cfg-status');s.textContent='Saved!';setTimeout(()=>s.textContent='',2000);addLog('Thresholds updated.');}
+
+function saveSMS(){
+  const url=document.getElementById('twilio-url').value.trim();
+  const from=document.getElementById('twilio-from').value.trim();
+  const to=document.getElementById('twilio-to').value.trim();
+  const st=document.getElementById('sms-status');
+  if(!url||!from||!to){st.textContent='Fill in all three fields.';st.style.color='var(--red)';return;}
+  localStorage.setItem('twilio_url',url);localStorage.setItem('twilio_from',from);localStorage.setItem('twilio_to',to);
+  smsOn=true;localStorage.setItem('sms_on','true');
+  document.getElementById('sms-toggle').classList.add('on');document.getElementById('sms-label').textContent='SMS alerts: on';document.getElementById('sms-badge').style.display='inline-block';
+  st.textContent='Saved! SMS alerts enabled.';st.style.color='var(--green)';
+}
+
+function toggleSMS(){smsOn=!smsOn;localStorage.setItem('sms_on',smsOn);document.getElementById('sms-toggle').classList.toggle('on',smsOn);document.getElementById('sms-label').textContent='SMS alerts: '+(smsOn?'on':'off');document.getElementById('sms-badge').style.display=smsOn?'inline-block':'none';}
+
+async function sendSMS(body){
+  const url=localStorage.getItem('twilio_url'),from=localStorage.getItem('twilio_from'),to=localStorage.getItem('twilio_to');
+  if(!url||!from||!to)return;
+  try{await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({body,from,to})});addLog('SMS sent.','sms');}
+  catch(e){addLog('SMS failed: '+e.message,'warn');}
+}
+
+async function testSMS(){
+  const st=document.getElementById('sms-status');st.textContent='Sending...';st.style.color='var(--text2)';
+  await sendSMS('Test from Stock Alert System — your SMS alerts are working!');
+  st.textContent='Test SMS sent! Check your phone.';st.style.color='var(--green)';
+}
+
+const DEFAULT_WATCHLIST=['AAPL','MSFT','NVDA','TSLA','AMZN','META','GOOGL','SPY'];
+let watchlist=JSON.parse(localStorage.getItem('watchlist')||JSON.stringify(DEFAULT_WATCHLIST));
+
+function renderWatchlist(){
+  const cur=document.getElementById('ticker-in').value.toUpperCase().trim();
+  const container=document.getElementById('watchlist');
+  container.innerHTML='';
+  watchlist.forEach(t=>{
+    const chip=document.createElement('div');
+    chip.className='wchip'+(t===cur?' active':'');
+    chip.textContent=t;
+    chip.onclick=()=>{document.getElementById('ticker-in').value=t;renderWatchlist();loadStock();};
+    chip.oncontextmenu=(e)=>{e.preventDefault();if(confirm('Remove '+t+' from watchlist?')){watchlist=watchlist.filter(x=>x!==t);localStorage.setItem('watchlist',JSON.stringify(watchlist));renderWatchlist();}};
+    container.appendChild(chip);
+  });
+}
+
+function addToWatchlist(){
+  const t=document.getElementById('ticker-in').value.toUpperCase().trim();
+  if(!t){alert('Type a ticker first.');return;}
+  if(watchlist.includes(t)){alert(t+' is already in your watchlist.');return;}
+  if(watchlist.length>=20){alert('Watchlist is full (max 20). Remove one first.');return;}
+  watchlist.push(t);
+  localStorage.setItem('watchlist',JSON.stringify(watchlist));
+  renderWatchlist();
+  addLog(t+' added to watchlist.');
+}
+
+function resetWatchlist(){
+  if(!confirm('Reset watchlist to defaults?'))return;
+  watchlist=[...DEFAULT_WATCHLIST];
+  localStorage.setItem('watchlist',JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+function calcEMA(arr,p){
+  const k=2/(p+1),out=new Array(arr.length).fill(null);
+  let s=-1;for(let i=0;i<arr.length;i++)if(arr[i]!=null){s=i;break;}
+  if(s<0||s+p>arr.length)return out;
+  let sum=0;for(let i=s;i<s+p;i++)sum+=arr[i];
+  out[s+p-1]=+(sum/p).toFixed(4);
+  for(let i=s+p;i<arr.length;i++)out[i]=+(arr[i]*k+out[i-1]*(1-k)).toFixed(4);
+  return out;
+}
+function calcRSI(p,per=14){
+  const r=new Array(p.length).fill(null);if(p.length<=per)return r;
+  let g=0,l=0;for(let i=1;i<=per;i++){const d=p[i]-p[i-1];d>0?g+=d:l-=d;}
+  let ag=g/per,al=l/per;r[per]=al===0?100:+(100-100/(1+ag/al)).toFixed(2);
+  for(let i=per+1;i<p.length;i++){const d=p[i]-p[i-1];ag=(ag*(per-1)+(d>0?d:0))/per;al=(al*(per-1)+(d<0?-d:0))/per;r[i]=al===0?100:+(100-100/(1+ag/al)).toFixed(2);}
+  return r;
+}
+function calcBB(p,per=20,m=2){
+  const up=[],lo=[];
+  for(let i=0;i<p.length;i++){if(i<per-1){up.push(null);lo.push(null);continue;}const s=p.slice(i-per+1,i+1),mn=s.reduce((a,b)=>a+b,0)/per,sd=Math.sqrt(s.reduce((a,b)=>a+(b-mn)**2,0)/per);up.push(+(mn+m*sd).toFixed(4));lo.push(+(mn-m*sd).toFixed(4));}
+  return{up,lo};
+}
+function calcMACD(p){
+  const e12=calcEMA(p,12),e26=calcEMA(p,26);
+  const ml=p.map((_,i)=>e12[i]!=null&&e26[i]!=null?+(e12[i]-e26[i]).toFixed(4):null);
+  const sigRaw=calcEMA(ml.filter(v=>v!=null),9);
+  const sig=ml.map((v,i)=>{if(v==null)return null;const idx=ml.slice(0,i+1).filter(x=>x!=null).length-1;return sigRaw[idx]!=null?+sigRaw[idx].toFixed(4):null;});
+  return{ml,sig};
+}
+function last(a){for(let i=a.length-1;i>=0;i--)if(a[i]!=null)return a[i];return null;}
+function setDot(i,c){document.querySelectorAll('#sig-grid .dot')[i].className='dot '+c;}
+function addLog(msg,cls=''){
+  const log=document.getElementById('log');
+  if(log.children[0]&&log.children[0].textContent.includes('Waiting'))log.innerHTML='';
+  const el=document.createElement('div');el.className='le '+(cls||'');el.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+  log.prepend(el);while(log.children.length>60)log.removeChild(log.lastChild);
+}
+
+function buildCharts(labels,prices,ma20,ma50,bbUp,bbLo,rsi,ml,sig){
+  if(pChart)pChart.destroy();if(oChart)oChart.destroy();
+  pChart=new Chart(document.getElementById('price-chart'),{type:'line',data:{labels,datasets:[{label:'Price',data:prices,borderColor:'#378ADD',borderWidth:1.5,pointRadius:0,tension:.2,fill:false},{label:'MA20',data:ma20,borderColor:'#1D9E75',borderWidth:1,pointRadius:0,tension:.2,fill:false},{label:'MA50',data:ma50,borderColor:'#D85A30',borderWidth:1,pointRadius:0,tension:.2,fill:false},{label:'BB up',data:bbUp,borderColor:'#B4B2A9',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false},{label:'BB lo',data:bbLo,borderColor:'#B4B2A9',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},scales:{x:{ticks:{maxTicksLimit:8,color:'#888780',font:{size:10}},grid:{color:'rgba(136,135,128,.1)'}},y:{ticks:{color:'#888780',font:{size:10},callback:v=>'$'+v.toFixed(2)},grid:{color:'rgba(136,135,128,.1)'}}},animation:{duration:300}}});
+  oChart=new Chart(document.getElementById('osc-chart'),{type:'line',data:{labels,datasets:[{label:'RSI',data:rsi,borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:.2,fill:false,yAxisID:'y'},{label:'MACD',data:ml,borderColor:'#378ADD',borderWidth:1.5,pointRadius:0,tension:.2,fill:false,yAxisID:'y2'},{label:'Signal',data:sig,borderColor:'#D85A30',borderWidth:1,borderDash:[3,2],pointRadius:0,tension:.2,fill:false,yAxisID:'y2'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},scales:{x:{ticks:{maxTicksLimit:8,color:'#888780',font:{size:10}},grid:{color:'rgba(136,135,128,.1)'}},y:{position:'left',min:0,max:100,ticks:{color:'#888780',font:{size:10},stepSize:30},grid:{color:'rgba(136,135,128,.1)'}},y2:{position:'right',ticks:{color:'#888780',font:{size:10}},grid:{drawOnChartArea:false}}},animation:{duration:300}}});
+}
+
+async function analyze(ticker,prices,volumes,labels){
+  const ma20=calcEMA(prices,20),ma50=calcEMA(prices,50);
+  const{up:bbUp,lo:bbLo}=calcBB(prices,20,2);
+  const rsi=calcRSI(prices);const{ml,sig}=calcMACD(prices);
+  buildCharts(labels,prices,ma20,ma50,bbUp,bbLo,rsi,ml,sig);
+  const cp=prices[prices.length-1],pp=prices[prices.length-2]||cp,chg=(cp-pp)/pp*100;
+  const cRSI=last(rsi),cMACD=last(ml),cSig=last(sig),cMA20=last(ma20),cMA50=last(ma50);
+  const pMA20=ma20[ma20.length-2],pMA50=ma50[ma50.length-2],pMACD=ml[ml.length-2],pSig=sig[sig.length-2];
+  const cBBLo=last(bbLo),cBBUp=last(bbUp);
+  const avgVol=volumes.slice(-20).reduce((a,b)=>a+b,0)/20,volRatio=avgVol>0?volumes[volumes.length-1]/avgVol:1;
+  const bbPct=cBBLo!=null&&cBBUp!=null?(cp-cBBLo)/(cBBUp-cBBLo)*100:50;
+  const recentLow=Math.min(...prices.slice(-20)),pol=(cp-recentLow)/recentLow*100;
+
+  document.getElementById('m-price').textContent='$'+cp.toFixed(2);
+  const ce=document.getElementById('m-chg');ce.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';ce.className='val '+(chg>=0?'pos':'neg');
+  const re=document.getElementById('m-rsi');re.textContent=cRSI!=null?cRSI.toFixed(1):'—';re.className='val '+(cRSI<30?'pos':cRSI>70?'neg':'neu');
+  document.getElementById('m-macd').textContent=cMACD!=null?cMACD.toFixed(3):'—';
+  const ve=document.getElementById('m-vol');ve.textContent=volRatio.toFixed(2)+'x';ve.className='val '+(volRatio>1.5?'pos':volRatio<0.7?'neg':'neu');
+  document.getElementById('m-bb').textContent=bbPct.toFixed(0)+'%';
+
+  let score=0;
+  const s1=cRSI!=null&&cRSI<cfg.rsi;setDot(0,s1?'dg':cRSI<cfg.rsi+10?'dy':'dn');if(s1)score++;
+  const s2=pMACD!=null&&pSig!=null&&cMACD!=null&&cSig!=null&&pMACD<pSig&&cMACD>=cSig;setDot(1,s2?'dg':cMACD>cSig?'dy':'dn');if(s2)score++;
+  const s3=pMA20!=null&&pMA50!=null&&pMA20<pMA50&&cMA20>=cMA50;setDot(2,s3?'dg':cMA20>cMA50?'dy':'dn');if(s3)score++;
+  const s4=volRatio>cfg.vol;setDot(3,s4?'dg':volRatio>cfg.vol*.75?'dy':'dn');if(s4)score++;
+  const s5=bbPct<cfg.bb;setDot(4,s5?'dg':bbPct<cfg.bb*1.75?'dy':'dn');if(s5)score++;
+  const s6=pol>=0&&pol<cfg.pol;setDot(5,s6?'dg':pol<cfg.pol*2?'dy':'dn');if(s6)score++;
+
+  const sc=document.getElementById('m-score');sc.textContent=score+'/6';sc.className='val '+(score>=4?'pos':score>=2?'neu':'neg');
+  const box=document.getElementById('alert-box');
+  let lvl='none';
+  if(score>=4){
+    lvl='launch';box.className='alert-box a-launch';
+    box.innerHTML=`<div class="a-title">Launch signal — ${score}/6 signals firing on ${ticker}</div><div class="a-sub">Strong reversal confluence on live 15-min data. RSI ${cRSI!=null?cRSI.toFixed(1):'—'} · MACD ${cMACD!=null?cMACD.toFixed(3):'—'} · Vol ${volRatio.toFixed(2)}x avg · ${pol.toFixed(1)}% off recent low. Consider entry with a defined stop-loss. Not financial advice.</div>`;
+    addLog('ALERT: '+ticker+' — '+score+'/6 signals. Potential reversal.','good');
+    if(smsOn&&lastAlertLevel!=='launch')await sendSMS('LAUNCH ALERT — '+ticker+' '+score+'/6 signals\nPrice: $'+cp.toFixed(2)+' · RSI: '+(cRSI!=null?cRSI.toFixed(1):'—')+' · Vol '+volRatio.toFixed(2)+'x\nPotential reversal — check your chart.\nNot financial advice.');
+  } else if(score>=2){
+    lvl='watch';box.className='alert-box a-watch';
+    box.innerHTML=`<div class="a-title">Watch — ${score}/6 signals active on ${ticker}</div><div class="a-sub">Building momentum but not full confluence yet. RSI ${cRSI!=null?cRSI.toFixed(1):'—'} · Vol ${volRatio.toFixed(2)}x avg. Keep monitoring.</div>`;
+    addLog('WATCH: '+ticker+' — '+score+'/6 signals.','warn');
+    if(smsOn&&lastAlertLevel!=='watch'&&lastAlertLevel!=='launch')await sendSMS('WATCH ALERT — '+ticker+' '+score+'/6 signals\nPrice: $'+cp.toFixed(2)+' · RSI: '+(cRSI!=null?cRSI.toFixed(1):'—')+'\nBuilding momentum — not full confluence yet.');
+  } else {
+    box.className='alert-box a-wait';
+    box.innerHTML=`<div class="a-title">No signal — ${score}/6 conditions met on ${ticker}</div><div class="a-sub">No reversal confluence yet. Price: $${cp.toFixed(2)} · RSI: ${cRSI!=null?cRSI.toFixed(1):'—'}. Continue monitoring.</div>`;
+    addLog(ticker+' scanned — '+score+'/6 signals.');
+  }
+  lastAlertLevel=lvl;
+  document.getElementById('last-upd').textContent='Updated '+new Date().toLocaleTimeString();
+}
+
+// ---- DATA: Finnhub — direct browser call, no proxy, CORS native ----
+// Key stored in localStorage — always read fresh so Settings changes take effect immediately
+let FINNHUB_KEY=localStorage.getItem('fh_key')||'';
+const FINNHUB='https://finnhub.io/api/v1';
+
+function getFHKey(){
+  // Always read from localStorage first so a saved key is always current
+  return localStorage.getItem('fh_key')||FINNHUB_KEY||'';
+}
+
+function saveFHKey(){
+  const k=document.getElementById('fh-key-in').value.trim();
+  if(!k){
+    const s=document.getElementById('fh-key-status');
+    s.textContent='Please paste your Finnhub key first.';s.style.color='var(--red)';return;
+  }
+  FINNHUB_KEY=k;
+  localStorage.setItem('fh_key',k);
+  const s=document.getElementById('fh-key-status');
+  s.textContent='✓ Key saved. Click Test key to verify it works.';
+  s.style.color='var(--green)';
+}
+
+async function testFHKey(){
+  const k=document.getElementById('fh-key-in').value.trim();
+  const s=document.getElementById('fh-key-status');
+  if(!k){s.textContent='Paste a key first.';s.style.color='var(--red)';return;}
+  s.textContent='Testing...';s.style.color='var(--text2)';
+  try{
+    const res=await fetch(`${FINNHUB}/quote?symbol=AAPL&token=${k}`,{cache:'no-store'});
+    const d=await res.json();
+    if(res.status===403||d.error){
+      s.textContent='✗ Invalid key. Double-check it on your Finnhub dashboard.';
+      s.style.color='var(--red)';return;
+    }
+    if(d.c&&d.c>0){
+      // Always save immediately on success so fetchFinnhub picks it up
+      FINNHUB_KEY=k;
+      localStorage.setItem('fh_key',k);
+      s.textContent='✓ Key valid! AAPL: $'+d.c.toFixed(2)+'. Key saved and active.';
+      s.style.color='var(--green)';
+    } else {
+      s.textContent='Got response but no price (market may be closed). Key looks ok — try Analyze.';
+      // Still save it
+      FINNHUB_KEY=k;localStorage.setItem('fh_key',k);
+      s.style.color='var(--amber)';
+    }
+  }catch(e){
+    s.textContent='Network error: '+e.message;s.style.color='var(--red)';
+  }
+}
+
+async function finnhubGet(path, params){
+  const key=getFHKey();
+  if(!key){throw new Error('no_key');}
+  const qs=new URLSearchParams({...params, token:key}).toString();
+  const url=`${FINNHUB}${path}?${qs}`;
+  addLog('Finnhub → '+path+' symbol='+params.symbol);
+  const res=await fetch(url,{cache:'no-store'});
+  if(res.status===429) throw new Error('rate_limit');
+  if(res.status===403) throw new Error('invalid_key');
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  return data;
+}
+
+// Fetch candle bars for alert chart
+// Finnhub resolution: 1,5,15,30,60,D,W,M
+async function fetchFinnhub(ticker){
+  const iv=document.getElementById('interval').value;
+  const resMap={'15min':'15','60min':'60','daily':'D'};
+  const resolution=resMap[iv]||'15';
+  const now=Math.floor(Date.now()/1000);
+  // For 15-min: last 5 trading days (~2 weeks calendar to ensure enough bars)
+  // For 60-min: last 1 month
+  // For daily: last 6 months
+  const fromMap={'15':now-14*24*3600,'60':now-30*24*3600,'D':now-180*24*3600};
+  const from=fromMap[resolution];
+  const data=await finnhubGet('/stock/candle',{symbol:ticker,resolution,from,to:now});
+  addLog('Finnhub candle status: '+data.s+' bars: '+(data.c?data.c.length:0));
+  if(data.s==='no_data') throw new Error('no_data');
+  if(!data.c||data.c.length<5) throw new Error('no_data');
+  // data: {c,h,l,o,v,t,s} — all parallel arrays
+  const prices=data.c.map(x=>parseFloat(x.toFixed(4)));
+  const volumes=data.v.map(x=>x||0);
+  const labels=data.t.map(t=>{
+    const d=new Date(t*1000);
+    return resolution==='D'
+      ?d.toLocaleDateString('en-US',{month:'short',day:'numeric'})
+      :d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+  });
+  const latest=prices[prices.length-1];
+  addLog('✓ Finnhub: '+ticker+' '+prices.length+' bars. Latest close: $'+latest.toFixed(2),'good');
+  return{prices,volumes,labels,highs:data.h,lows:data.l};
+}
+
+// Fetch daily candles for ATR calculation (needs H/L/C)
+async function fetchFinnhubDaily(ticker){
+  const now=Math.floor(Date.now()/1000);
+  const from=now-90*24*3600; // 3 months
+  const data=await finnhubGet('/stock/candle',{symbol:ticker,resolution:'D',from,to:now});
+  if(data.s==='no_data'||!data.c||data.c.length<15) throw new Error('not_enough_data');
+  return{closes:data.c,highs:data.h,lows:data.l};
+}
+
+async function loadStock(){
+  const ticker=(document.getElementById('ticker-in').value||'AAPL').toUpperCase().trim();
+  document.getElementById('ticker-in').value=ticker;
+  renderWatchlist();
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true;btn.textContent='Loading...';
+  document.getElementById('alert-box').className='alert-box a-wait';
+  document.getElementById('alert-box').innerHTML=`<div class="a-title">Fetching ${ticker} from Finnhub...</div><div class="a-sub">Direct API call · No proxy · ~15 min delay</div>`;
+  document.getElementById('src-badge').className='badge b-live';
+  document.getElementById('src-badge').textContent='Finnhub · loading...';
+  try{
+    const{prices,volumes,labels}=await fetchFinnhub(ticker);
+    const latest=prices[prices.length-1];
+    document.getElementById('src-badge').textContent='Finnhub · $'+latest.toFixed(2);
+    await analyze(ticker,prices,volumes,labels);
+  } catch(e){
+    let title='Error fetching '+ticker;
+    let sub=e.message;
+    if(e.message==='no_key') { title='No API key set'; sub='Go to Settings tab → paste your Finnhub key → click Save.'; }
+    else if(e.message==='no_data') { title='No data for '+ticker; sub='Market may be closed or ticker not supported by Finnhub. Try switching to Daily interval, or verify the symbol at finnhub.io.'; }
+    else if(e.message==='rate_limit') { title='Rate limit hit'; sub='Free tier allows 60 calls/min. Wait 10 seconds and try again.'; }
+    else if(e.message==='invalid_key') { title='Invalid API key'; sub='Go to Settings tab → paste your Finnhub key → click Test key → click Save.'; }
+    else { sub=e.message; }
+    document.getElementById('alert-box').className='alert-box a-err';
+    document.getElementById('alert-box').innerHTML=`<div class="a-title">⚠ ${title}</div><div class="a-sub">${sub}</div>`;
+    document.getElementById('src-badge').className='badge b-sim';
+    document.getElementById('src-badge').textContent='Error — no data';
+    addLog('loadStock error: '+e.message,'warn');
+  }
+  btn.disabled=false;btn.textContent='Analyze';
+}
+
+function toggleAuto(){
+  autoOn=!autoOn;const btn=document.getElementById('auto-btn');
+  const iv=document.getElementById('interval').value;
+  const ms=iv==='15min'?15*60*1000:iv==='60min'?60*60*1000:24*60*60*1000;
+  btn.textContent='Auto: '+(autoOn?'On':'Off');
+  if(autoOn){autoTimer=setInterval(()=>loadStock(),ms);addLog('Auto-refresh started.');}
+  else{clearInterval(autoTimer);addLog('Auto-refresh stopped.');}
+}
+
+/* ATR STOP-LOSS CALCULATOR */
+function calcATRfromPrices(highs, lows, closes, period=14){
+  const tr=[];
+  for(let i=1;i<closes.length;i++){
+    const h=highs[i],l=lows[i],pc=closes[i-1];
+    tr.push(Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc)));
+  }
+  if(tr.length<period) return tr.reduce((a,b)=>a+b,0)/tr.length;
+  let atr=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=period;i<tr.length;i++) atr=(atr*(period-1)+tr[i])/period;
+  return atr;
+}
+
+// Cache raw ATR so dropdown changes don't need a re-fetch
+window._cachedATR=null;
+window._atrResult=null;
+
+function renderATRResult(atr, entryPrice, dir, accountSize, riskPct, mult, ticker){
+  const stopDist=atr*mult;
+  const stopPrice=dir==='Long'
+    ? parseFloat((entryPrice-stopDist).toFixed(2))
+    : parseFloat((entryPrice+stopDist).toFixed(2));
+  const riskPerShare=Math.abs(entryPrice-stopPrice);
+  const maxRisk=accountSize*riskPct/100;
+  const positionSize=Math.max(1,Math.floor(maxRisk/riskPerShare));
+  const target2=dir==='Long'
+    ? parseFloat((entryPrice+riskPerShare*2).toFixed(2))
+    : parseFloat((entryPrice-riskPerShare*2).toFixed(2));
+  const target3=dir==='Long'
+    ? parseFloat((entryPrice+riskPerShare*3).toFixed(2))
+    : parseFloat((entryPrice-riskPerShare*3).toFixed(2));
+  const profitAt2=(riskPerShare*2*positionSize).toFixed(2);
+
+  window._atrResult={ticker,dir,entry:entryPrice,stop:stopPrice,target:target2,qty:positionSize,atr:atr.toFixed(2)};
+
+  document.getElementById('atr-val').textContent='$'+atr.toFixed(3);
+  document.getElementById('atr-stop').textContent='$'+stopPrice.toFixed(2);
+  document.getElementById('atr-rps').textContent='$'+riskPerShare.toFixed(2);
+  document.getElementById('atr-qty').textContent=positionSize+' shares';
+  document.getElementById('atr-maxrisk').textContent='$'+maxRisk.toFixed(2);
+  document.getElementById('atr-t1').textContent='$'+target2.toFixed(2);
+  document.getElementById('atr-t2').textContent='$'+target3.toFixed(2);
+  document.getElementById('atr-p1').textContent='+$'+profitAt2;
+  document.getElementById('atr-explanation').innerHTML=`
+    <strong>How to read this:</strong><br>
+    ${ticker}'s daily ATR is <strong>$${atr.toFixed(3)}</strong> — it moves about $${atr.toFixed(2)} per day on average.<br>
+    Stop-loss at <strong>$${stopPrice.toFixed(2)}</strong> is placed ${mult}× ATR ${dir==='Long'?'below':'above'} entry ($${entryPrice.toFixed(2)}), outside normal daily noise.<br>
+    Risking ${riskPct}% of your $${accountSize.toLocaleString()} account = <strong>$${maxRisk.toFixed(2)} max loss</strong> → buy <strong>${positionSize} shares</strong>.<br>
+    2:1 target <strong>$${target2.toFixed(2)}</strong> → profit <strong>+$${profitAt2}</strong> &nbsp;|&nbsp; 3:1 target <strong>$${target3.toFixed(2)}</strong> → profit <strong>+$${(riskPerShare*3*positionSize).toFixed(2)}</strong><br>
+    <span style="color:var(--red);font-weight:500;">Place stop-loss order at $${stopPrice.toFixed(2)} with your broker immediately on entry.</span>`;
+  document.getElementById('atr-result').style.display='block';
+}
+
+// Called when any input changes — recomputes instantly without re-fetching
+function recomputeATR(){
+  if(!window._cachedATR) return; // no data yet, nothing to recompute
+  const entryPrice=parseFloat(document.getElementById('atr-entry').value);
+  const accountSize=parseFloat(document.getElementById('atr-account').value)||10000;
+  const riskPct=parseFloat(document.getElementById('atr-risk').value)||1;
+  const mult=parseFloat(document.getElementById('atr-mult').value)||1.5;
+  const dir=document.getElementById('atr-dir').value;
+  const ticker=document.getElementById('atr-ticker').value.toUpperCase().trim();
+  if(!entryPrice||entryPrice<=0) return;
+  renderATRResult(window._cachedATR, entryPrice, dir, accountSize, riskPct, mult, ticker);
+}
+
+async function calcATR(){
+  const ticker=(document.getElementById('atr-ticker').value||'').toUpperCase().trim();
+  const entryPrice=parseFloat(document.getElementById('atr-entry').value);
+  const accountSize=parseFloat(document.getElementById('atr-account').value)||10000;
+  const riskPct=parseFloat(document.getElementById('atr-risk').value)||1;
+  const mult=parseFloat(document.getElementById('atr-mult').value)||1.5;
+  const dir=document.getElementById('atr-dir').value;
+
+  if(!ticker||!entryPrice){alert('Enter ticker and entry price first.');return;}
+
+  const btn=document.getElementById('atr-calc-btn');
+  const loading=document.getElementById('atr-loading');
+  btn.disabled=true;btn.textContent='Fetching price data...';
+  loading.style.display='block';
+  document.getElementById('atr-result').style.display='none';
+  window._cachedATR=null;
+
+  try{
+    const{closes,highs,lows}=await fetchFinnhubDaily(ticker);
+    const atr=calcATRfromPrices(highs,lows,closes,14);
+    window._cachedATR=atr;
+    renderATRResult(atr,entryPrice,dir,accountSize,riskPct,mult,ticker);
+  } catch(e){
+    alert('Could not fetch data for '+ticker+': '+e.message);
+  }
+  btn.disabled=false;btn.textContent='Calculate stop-loss & targets';
+  loading.style.display='none';
+}
+
+function prefillFromATR(){
+  const r=window._atrResult;
+  if(!r) return;
+  document.getElementById('j-ticker').value=r.ticker;
+  document.getElementById('j-dir').value=r.dir;
+  document.getElementById('j-entry').value=r.entry;
+  document.getElementById('j-qty').value=r.qty;
+  document.getElementById('j-stop').value=r.stop;
+  document.getElementById('j-target').value=r.target;
+  document.getElementById('j-notes').value='ATR stop. ATR=$'+r.atr;
+  // Switch to the log form visually
+  document.getElementById('j-ticker').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('j-ticker').focus();
+}
+
+/* JOURNAL */
+function addTrade(){
+  const ticker=(document.getElementById('j-ticker').value||'').toUpperCase().trim();
+  const entry=parseFloat(document.getElementById('j-entry').value);
+  const qty=parseFloat(document.getElementById('j-qty').value);
+  if(!ticker||!entry||!qty){alert('Ticker, entry price and quantity are required.');return;}
+  const stop=parseFloat(document.getElementById('j-stop').value)||null;
+  const target=parseFloat(document.getElementById('j-target').value)||null;
+  const rr=stop&&target?Math.abs((target-entry)/(entry-stop)).toFixed(2):null;
+  trades.unshift({id:Date.now(),date:new Date().toLocaleDateString(),ticker,dir:document.getElementById('j-dir').value,entry,qty,stop,target,rr,exit:null,pnl:null,score:parseInt(document.getElementById('j-score').value),notes:document.getElementById('j-notes').value,status:'Open'});
+  saveTrades();renderJournal();
+  ['j-ticker','j-entry','j-qty','j-stop','j-target','j-notes'].forEach(id=>document.getElementById(id).value='');
+  addLog('Trade logged: '+document.getElementById('j-dir').value+' '+ticker+' x'+qty+' @ $'+entry);
+}
+
+function closeTrade(id){
+  const exit=parseFloat(prompt('Exit price:'));if(isNaN(exit)||exit<=0)return;
+  const t=trades.find(x=>x.id===id);if(!t)return;
+  t.exit=exit;t.status='Closed';t.pnl=+(( t.dir==='Long'?(exit-t.entry):(t.entry-exit))*t.qty).toFixed(2);
+  saveTrades();renderJournal();addLog('Closed '+t.ticker+' P&L $'+t.pnl,(t.pnl>=0?'good':'warn'));
+}
+
+function deleteTrade(id){if(!confirm('Delete this trade?'))return;trades=trades.filter(x=>x.id!==id);saveTrades();renderJournal();}
+function saveTrades(){localStorage.setItem('trades',JSON.stringify(trades));}
+
+function renderJournal(){
+  const closed=trades.filter(t=>t.status==='Closed');
+  const wins=closed.filter(t=>t.pnl>0);
+  const totalPnl=closed.reduce((a,b)=>a+(b.pnl||0),0);
+  const avgWin=wins.length?wins.reduce((a,b)=>a+b.pnl,0)/wins.length:0;
+  const losses=closed.filter(t=>t.pnl<=0);
+  const avgLoss=losses.length?losses.reduce((a,b)=>a+b.pnl,0)/losses.length:0;
+  document.getElementById('j-total').textContent=trades.length;
+  const wr=document.getElementById('j-winrate');wr.textContent=closed.length?Math.round(wins.length/closed.length*100)+'%':'—';wr.className='val '+(closed.length&&wins.length/closed.length>0.5?'pos':'neg');
+  const pe=document.getElementById('j-pnl');pe.textContent=(totalPnl>=0?'+$':'- $')+Math.abs(totalPnl).toFixed(2);pe.className='val '+(totalPnl>=0?'pos':'neg');
+  document.getElementById('j-avgwin').textContent=avgWin?'+$'+avgWin.toFixed(2):'—';
+  document.getElementById('j-avgloss').textContent=avgLoss?'-$'+Math.abs(avgLoss).toFixed(2):'—';
+  document.getElementById('j-open').textContent=trades.filter(t=>t.status==='Open').length;
+  const tbody=document.getElementById('jnl-body');
+  if(!trades.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:24px;">No trades logged yet.</td></tr>';return;}
+  tbody.innerHTML=trades.map(t=>{
+    const pnlStr=t.pnl!=null?(t.pnl>=0?'<span style="color:var(--green);font-weight:500;">+$'+t.pnl.toFixed(2)+'</span>':'<span style="color:var(--red);font-weight:500;">-$'+Math.abs(t.pnl).toFixed(2)+'</span>'):'<span style="color:var(--amber);">Open</span>';
+    return`<tr><td>${t.date}</td><td><strong>${t.ticker}</strong></td><td>${t.dir}</td><td>$${t.entry.toFixed(2)}</td><td>${t.exit?'$'+t.exit.toFixed(2):'—'}</td><td>${t.qty}</td><td>${t.stop?'$'+t.stop.toFixed(2):'—'}</td><td>${t.target?'$'+t.target.toFixed(2):'—'}</td><td>${pnlStr}</td><td>${t.rr?t.rr+':1':'—'}</td><td>${t.score}/6</td><td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.notes||'—'}</td><td style="white-space:nowrap;">${t.status==='Open'?`<button class="btn btn-sm btn-g" onclick="closeTrade(${t.id})">Close</button> `:''}<button class="btn btn-sm btn-r" onclick="deleteTrade(${t.id})">Del</button></td></tr>`;
+  }).join('');
+}
+
+function exportCSV(){
+  if(!trades.length){alert('No trades to export.');return;}
+  const h=['Date','Ticker','Direction','Entry','Exit','Qty','Stop','Target','P&L','R:R','Score','Notes','Status'];
+  const rows=trades.map(t=>[t.date,t.ticker,t.dir,t.entry,t.exit||'',t.qty,t.stop||'',t.target||'',t.pnl!=null?t.pnl:'',t.rr||'',t.score,t.notes||'',t.status]);
+  const csv=[h,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='trade-journal-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+// ---- STARTUP (after all functions are defined) ----
+function init(){
+  // Restore settings UI
+  document.getElementById('fh-key-in').value=FINNHUB_KEY;
+  document.getElementById('cfg-rsi').value=cfg.rsi;
+  document.getElementById('cfg-vol').value=cfg.vol;
+  document.getElementById('cfg-bb').value=cfg.bb;
+  document.getElementById('cfg-pol').value=cfg.pol;
+  const u=localStorage.getItem('twilio_url'),f=localStorage.getItem('twilio_from'),t=localStorage.getItem('twilio_to');
+  if(u)document.getElementById('twilio-url').value=u;
+  if(f)document.getElementById('twilio-from').value=f;
+  if(t)document.getElementById('twilio-to').value=t;
+  if(smsOn){
+    document.getElementById('sms-toggle').classList.add('on');
+    document.getElementById('sms-label').textContent='SMS alerts: on';
+    document.getElementById('sms-badge').style.display='inline-block';
+  }
+  // Render watchlist chips
+  renderWatchlist();
+  // Render journal stats
+  renderJournal();
+  // Run first stock analysis
+  loadStock();
+}
+
+init();
+</script>
+</body>
+</html>
