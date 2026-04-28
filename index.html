@@ -576,11 +576,22 @@ async function finnhubGet(path, params){
   if(!key){throw new Error('no_key');}
   const qs=new URLSearchParams({...params, token:key}).toString();
   const url=`${FINNHUB}${path}?${qs}`;
-  addLog('Finnhub → '+path+' symbol='+params.symbol);
+  // Log first 8 chars of key so you can confirm correct key is being used
+  addLog('Finnhub → '+path+' symbol='+params.symbol+' key='+key.slice(0,8)+'...');
   const res=await fetch(url,{cache:'no-store'});
-  if(res.status===429) throw new Error('rate_limit');
-  if(res.status===403) throw new Error('invalid_key');
-  if(!res.ok) throw new Error('HTTP '+res.status);
+  if(!res.ok){
+    // Read actual error body — Finnhub tells us exactly what went wrong
+    let body='';
+    try{ body=await res.text(); }catch(e){}
+    addLog('Finnhub HTTP '+res.status+' body: '+body,'warn');
+    if(res.status===429) throw new Error('rate_limit');
+    // Distinguish domain block vs invalid key
+    if(res.status===403){
+      if(body.includes('not in allowlist')||body.includes('allowlist')) throw new Error('domain_blocked');
+      throw new Error('invalid_key');
+    }
+    throw new Error('HTTP '+res.status+': '+body.slice(0,100));
+  }
   const data=await res.json();
   return data;
 }
@@ -643,9 +654,10 @@ async function loadStock(){
     let title='Error fetching '+ticker;
     let sub=e.message;
     if(e.message==='no_key') { title='No API key set'; sub='Go to Settings tab → paste your Finnhub key → click Save.'; }
-    else if(e.message==='no_data') { title='No data for '+ticker; sub='Market may be closed or ticker not supported by Finnhub. Try switching to Daily interval, or verify the symbol at finnhub.io.'; }
-    else if(e.message==='rate_limit') { title='Rate limit hit'; sub='Free tier allows 60 calls/min. Wait 10 seconds and try again.'; }
-    else if(e.message==='invalid_key') { title='Invalid API key'; sub='Go to Settings tab → paste your Finnhub key → click Test key → click Save.'; }
+    else if(e.message==='domain_blocked') { title='Domain not whitelisted by Finnhub'; sub='Your GitHub Pages URL needs to be added to Finnhub\'s allowed list. Go to finnhub.io/dashboard → Security → add your GitHub Pages URL (e.g. https://yourname.github.io). Then try again.'; }
+    else if(e.message==='no_data') { title='No data for '+ticker; sub='Market may be closed or ticker not supported on Finnhub free tier. Try Daily interval.'; }
+    else if(e.message==='rate_limit') { title='Rate limit hit'; sub='Free tier: 60 calls/min. Wait 10 seconds and try again.'; }
+    else if(e.message==='invalid_key') { title='Invalid API key'; sub='Go to Settings tab → paste your Finnhub key → Test key → Save. Check alert log for details.'; }
     else { sub=e.message; }
     document.getElementById('alert-box').className='alert-box a-err';
     document.getElementById('alert-box').innerHTML=`<div class="a-title">⚠ ${title}</div><div class="a-sub">${sub}</div>`;
