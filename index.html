@@ -3,38 +3,37 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Reversal Scanner — TQQQ · BMNR · QBTS</title>
+<title>SK Trading - Reversal Scanner</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#0a0c0f;
-  --surface:#111318;
-  --surface2:#181c22;
-  --surface3:#1e2330;
-  --border:#1f2535;
-  --border2:#2a3348;
-  --text:#e8ecf4;
-  --text2:#8892a4;
-  --text3:#4a5568;
+  --bg:#2b2d35;
+  --surface:#33353f;
+  --surface2:#3a3d48;
+  --surface3:#42455200;
+  --border:rgba(255,255,255,0.1);
+  --border2:rgba(255,255,255,0.18);
+  --text:#f0f2f8;
+  --text2:#b0b6c8;
+  --text3:#7a8099;
   --green:#00d084;
-  --green-dim:#00382300;
-  --green-bg:rgba(0,208,132,0.08);
-  --green-border:rgba(0,208,132,0.25);
+  --green-bg:rgba(0,208,132,0.1);
+  --green-border:rgba(0,208,132,0.3);
   --amber:#f5a623;
-  --amber-bg:rgba(245,166,35,0.08);
-  --amber-border:rgba(245,166,35,0.25);
+  --amber-bg:rgba(245,166,35,0.1);
+  --amber-border:rgba(245,166,35,0.3);
   --red:#ff4757;
-  --red-bg:rgba(255,71,87,0.08);
-  --red-border:rgba(255,71,87,0.2);
+  --red-bg:rgba(255,71,87,0.1);
+  --red-border:rgba(255,71,87,0.25);
   --blue:#3b82f6;
-  --blue-bg:rgba(59,130,246,0.08);
+  --blue-bg:rgba(59,130,246,0.1);
   --accent:#00d084;
   --mono:'IBM Plex Mono',monospace;
   --sans:'IBM Plex Sans',sans-serif;
 }
 html{background:var(--bg);}
-body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(--bg);}
+body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(--bg);font-size:16px;}
 
 /* HEADER */
 .header{
@@ -46,9 +45,9 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
   gap:12px;flex-wrap:wrap;
 }
 .header-left{display:flex;align-items:center;gap:12px;}
-.logo{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
-.logo-sub{font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;}
-.status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-family:var(--mono);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);}
+.logo{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
+.logo-sub{font-size:13px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;}
+.status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:13px;font-family:var(--mono);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);}
 .status-dot.scanning{background:var(--amber);animation:blink 1s infinite;}
 .status-dot.done{background:var(--green);}
@@ -57,9 +56,9 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 
 /* CONTROLS */
 .controls{padding:16px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.key-input{font-family:var(--mono);font-size:12px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:260px;letter-spacing:1px;outline:none;}
+.key-input{font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:280px;letter-spacing:1px;outline:none;}
 .key-input:focus{border-color:var(--accent);}
-.btn{padding:8px 18px;border-radius:6px;font-size:12px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);letter-spacing:0.5px;transition:all .15s;}
+.btn{padding:8px 18px;border-radius:6px;font-size:14px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);letter-spacing:0.5px;transition:all .15s;}
 .btn:hover{background:var(--surface2);color:var(--text);}
 .btn-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600;}
 .btn-primary:hover{opacity:.85;color:#000;}
@@ -67,7 +66,7 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .btn-danger{border-color:var(--red-border);color:var(--red);}
 .btn-danger:hover{background:var(--red-bg);}
 .divider-v{width:1px;height:24px;background:var(--border2);}
-.auto-label{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.auto-label{font-size:13px;color:var(--text3);font-family:var(--mono);}
 
 /* PROGRESS */
 .progress-bar-wrap{height:2px;background:var(--border);width:100%;position:sticky;top:57px;z-index:99;}
@@ -79,14 +78,14 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 /* STATS ROW */
 .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;}
-.stat .lbl{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
-.stat .val{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--text);}
+.stat .lbl{font-size:12px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+.stat .val{font-size:24px;font-weight:600;font-family:var(--mono);color:var(--text);}
 .stat .val.green{color:var(--green);}
 .stat .val.amber{color:var(--amber);}
 .stat .val.red{color:var(--red);}
 
 /* ALERT CARDS */
-.section-title{font-size:11px;font-family:var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.section-title{font-size:13px;font-family:var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
 .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
 
 .alert-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:28px;}
@@ -113,11 +112,11 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 
 /* RESULTS TABLE */
 .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;font-size:12px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
 thead{background:var(--surface2);}
-th{padding:10px 14px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+th{padding:10px 14px;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
 th:hover{color:var(--text);}
-td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-family:var(--mono);font-size:12px;}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-family:var(--mono);font-size:13px;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--surface2);}
 .ticker-cell{font-weight:600;color:var(--text);}
@@ -159,13 +158,13 @@ tr:hover td{background:var(--surface2);}
 .jnl-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px;}
 .jnl-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
 .jnl-form-grid label{display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;}
-.jnl-input{width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;text-transform:none;}
+.jnl-input{width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;text-transform:none;}
 .jnl-input:focus{border-color:var(--accent);}
-.jnl-select{width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;}
-.badge-open{color:var(--amber);font-family:var(--mono);font-size:11px;}
-.badge-win{color:var(--green);font-family:var(--mono);font-size:11px;font-weight:600;}
-.badge-loss{color:var(--red);font-family:var(--mono);font-size:11px;font-weight:600;}
-.price-note{font-size:10px;color:var(--amber);font-family:var(--mono);margin-top:6px;padding:6px 10px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:6px;line-height:1.5;}
+.jnl-select{width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;}
+.badge-open{color:var(--amber);font-family:var(--mono);font-size:13px;}
+.badge-win{color:var(--green);font-family:var(--mono);font-size:13px;font-weight:600;}
+.badge-loss{color:var(--red);font-family:var(--mono);font-size:13px;font-weight:600;}
+.price-note{font-size:13px;color:var(--amber);font-family:var(--mono);margin-top:6px;padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:6px;line-height:1.5;}
 [data-tip]{position:relative;cursor:help;}
 [data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:4px 8px;border-radius:4px;font-size:10px;white-space:nowrap;z-index:999;font-family:var(--mono);}
 </style>
@@ -175,8 +174,8 @@ tr:hover td{background:var(--surface2);}
 <div class="header">
   <div class="header-left">
     <div>
-      <div class="logo">Reversal Scanner</div>
-      <div class="logo-sub">TQQQ · BMNR · QBTS · 15-min · Long setups</div>
+      <div class="logo">SK Trading — Reversal Scanner</div>
+      <div class="logo-sub">TQQQ · BMNR · QBTS · 15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span></div>
     </div>
   </div>
   <div class="tab-nav">
@@ -191,18 +190,36 @@ tr:hover td{background:var(--surface2);}
 </div>
 
 <div class="controls">
-  <input type="text" class="key-input" id="api-key" placeholder="Paste Twelve Data API key..." autocomplete="off"/>
+  <!-- API KEY: masked, password-reveal protected -->
+  <div style="display:flex;align-items:center;gap:6px;">
+    <input type="password" class="key-input" id="api-key" placeholder="Paste Twelve Data API key..." autocomplete="off"/>
+    <button class="btn" onclick="toggleKeyReveal()" id="key-reveal-btn" title="Reveal key">👁</button>
+  </div>
   <button class="btn btn-primary" id="scan-btn" onclick="startScan()">▶ Run scan</button>
   <div class="divider-v"></div>
   <button class="btn" id="auto-btn" onclick="toggleAuto()">Auto: Off</button>
   <span class="auto-label" id="auto-label"></span>
   <div class="divider-v"></div>
-  <button class="btn" id="sms-btn" onclick="toggleSMS()">SMS: Off</button>
-  <button class="btn" id="wa-btn" onclick="toggleWA()">WhatsApp: Off</button>
-  <button class="btn" id="push-btn" onclick="togglePush()">Push: Off</button>
+  <button class="btn" id="push-btn" onclick="togglePush()">🔔 Push: Off</button>
+  <span class="auto-label" id="push-label"></span>
   <div class="divider-v"></div>
   <button class="btn" onclick="saveKey()">Save key</button>
   <button class="btn btn-danger" onclick="clearResults()">Clear</button>
+</div>
+
+<!-- PASSWORD MODAL for key reveal -->
+<div id="key-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:none;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:24px 28px;width:320px;max-width:90vw;">
+    <div style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">🔐 Enter password to reveal key</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:14px;">Your API key is protected. Enter your password to view it.</div>
+    <input type="password" id="reveal-pwd-input" placeholder="Enter password..." style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;margin-bottom:10px;" onkeydown="if(event.key==='Enter')checkRevealPwd()"/>
+    <div id="reveal-pwd-error" style="font-size:12px;color:var(--red);margin-bottom:10px;display:none;">Incorrect password.</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="checkRevealPwd()" style="flex:1;">Reveal</button>
+      <button class="btn" onclick="closeKeyModal()" style="flex:1;">Cancel</button>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--text3);">To set/change password: Settings → Set Key Password</div>
+  </div>
 </div>
 
 <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
@@ -215,66 +232,6 @@ tr:hover td{background:var(--surface2);}
     <span>Paste your <strong>Twelve Data API key</strong> above and click <strong>Run scan</strong>. Get a free key at <a href="https://twelvedata.com" target="_blank" style="color:inherit;text-decoration:underline;">twelvedata.com</a> (800 calls/day free).</span>
   </div>
 
-  <!-- SMS CONFIG CARD -->
-  <div id="sms-config-card" style="display:none;background:var(--surface);border:1px solid var(--amber-border);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--amber);margin-bottom:12px;">📱 SMS Alert Configuration — Twilio</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px;">
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">TWILIO FUNCTION URL</div>
-        <input type="text" id="sms-url" placeholder="https://sms-alert-XXXX.twil.io/send" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">FROM NUMBER (Twilio)</div>
-        <input type="tel" id="sms-from" placeholder="+15551234567" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">TO NUMBER (yours)</div>
-        <input type="tel" id="sms-to" placeholder="+15559876543" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="saveSMSConfig()" style="font-size:11px;padding:6px 14px;">Save &amp; enable SMS</button>
-      <button class="btn" onclick="testSMS()" style="font-size:11px;padding:6px 14px;">Send test SMS</button>
-      <span id="sms-config-status" style="font-size:11px;color:var(--text3);font-family:var(--mono);"></span>
-    </div>
-    <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);line-height:1.6;">
-      Reads saved credentials from your Alert System if already configured.
-      Launch alert (5-6 signals) → full SMS with price/stop/target.
-      Watch alert (3-4 signals) → brief heads-up SMS.
-    </div>
-  </div>
-
-  <!-- WHATSAPP CONFIG CARD -->
-  <div id="wa-config-card" style="display:none;background:var(--surface);border:1px solid rgba(37,211,102,0.3);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#25d366;margin-bottom:10px;">💬 WhatsApp Alerts — Twilio Sandbox (no A2P needed)</div>
-    <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:11px;font-family:var(--mono);color:var(--text2);line-height:1.8;margin-bottom:12px;">
-      <strong style="color:var(--text);">Setup (one time):</strong><br>
-      1. Go to <a href="https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn" target="_blank" style="color:#25d366;">Twilio Console → WhatsApp Sandbox</a><br>
-      2. Send <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;">join &lt;your-sandbox-word&gt;</code> to the sandbox number from your WhatsApp<br>
-      3. Copy the sandbox number and your Twilio credentials below<br>
-      <span style="color:var(--amber);">Free trial works · No A2P registration needed · Re-join every 72 hours</span>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;">
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">TWILIO FUNCTION URL (same as SMS)</div>
-        <input type="text" id="wa-url" placeholder="https://sms-alert-XXXX.twil.io/send" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">SANDBOX FROM (whatsapp:+14155238886)</div>
-        <input type="text" id="wa-from" placeholder="whatsapp:+14155238886" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-      <div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">YOUR WHATSAPP NUMBER</div>
-        <input type="tel" id="wa-to" placeholder="whatsapp:+1555xxxxxxx" style="width:100%;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);text-transform:none;outline:none;"/>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="saveWAConfig()" style="font-size:11px;padding:6px 14px;background:#25d366;border-color:#25d366;color:#000;">Save &amp; enable</button>
-      <button class="btn" onclick="testWA()" style="font-size:11px;padding:6px 14px;">Send test WhatsApp</button>
-      <span id="wa-config-status" style="font-size:11px;color:var(--text3);font-family:var(--mono);"></span>
-    </div>
-  </div>
-
   <!-- PUSH NOTIFICATION CONFIG CARD -->
   <div id="push-config-card" style="display:none;background:var(--surface);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:10px;">🔔 Browser Push Notifications — instant, free, no signup</div>
@@ -284,9 +241,9 @@ tr:hover td{background:var(--surface2);}
       <span style="color:var(--amber);">Must be hosted on https:// (GitHub Pages works perfectly).</span>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="requestPushPermission()" id="push-request-btn" style="font-size:11px;padding:6px 14px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
-      <button class="btn" onclick="testPush()" style="font-size:11px;padding:6px 14px;">Send test notification</button>
-      <span id="push-status" style="font-size:11px;color:var(--text3);font-family:var(--mono);" id="push-config-status"></span>
+      <button class="btn btn-primary" onclick="requestPushPermission()" id="push-request-btn" style="font-size:13px;padding:6px 14px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
+      <button class="btn" onclick="testPush()" style="font-size:13px;padding:6px 14px;">Send test notification</button>
+      <span id="push-status" style="font-size:13px;color:var(--text3);font-family:var(--mono);"></span>
     </div>
   </div>
 
@@ -947,7 +904,8 @@ function renderResults(){
           RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}
         </div>
         <div class="signals">${dotsHtml}</div>
-        <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:11px;padding:6px 0;">+ Log trade</button>
+        ${buildIndicatorPanel(r)}
+        <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
       </div>`;
     });
   } else {
@@ -982,178 +940,89 @@ function renderResults(){
   }
 }
 
-// ---- SMS ----
-let smsOn=false;
-// Track which tickers already alerted this scan to avoid duplicate SMS
-let smsAlertedThisScan={};
 
-function loadSMSConfig(){
-  // Pull from localStorage — shared with alert system if already set up there
-  const url=localStorage.getItem('twilio_url')||'';
-  const from=localStorage.getItem('twilio_from')||'';
-  const to=localStorage.getItem('twilio_to')||'';
-  if(url) document.getElementById('sms-url').value=url;
-  if(from) document.getElementById('sms-from').value=from;
-  if(to) document.getElementById('sms-to').value=to;
-  return{url,from,to};
-}
+// ---- KEY MASKING — password protected reveal ----
+let keyRevealed=false;
+const KEY_PWD_STORAGE='sk_key_pwd';
 
-function saveSMSConfig(){
-  const url=document.getElementById('sms-url').value.trim();
-  const from=document.getElementById('sms-from').value.trim();
-  const to=document.getElementById('sms-to').value.trim();
-  const st=document.getElementById('sms-config-status');
-  if(!url||!from||!to){st.textContent='Fill in all three fields.';st.style.color='var(--red)';return;}
-  localStorage.setItem('twilio_url',url);
-  localStorage.setItem('twilio_from',from);
-  localStorage.setItem('twilio_to',to);
-  smsOn=true;
-  updateSMSBtn();
-  st.textContent='✓ Saved and enabled.';st.style.color='var(--green)';
-  log('SMS alerts enabled.','good');
-}
-
-function toggleSMS(){
-  // If turning on, show config card and load saved credentials
-  if(!smsOn){
-    document.getElementById('sms-config-card').style.display='block';
-    const{url,from,to}=loadSMSConfig();
-    if(url&&from&&to){
-      // Credentials already saved — enable immediately
-      smsOn=true;
-      updateSMSBtn();
-      document.getElementById('sms-config-status').textContent='✓ Using saved Twilio config.';
-      document.getElementById('sms-config-status').style.color='var(--green)';
-      log('SMS enabled — using saved Twilio credentials.','good');
-    } else {
-      log('Enter your Twilio credentials in the SMS config card below.','warn');
-    }
+function toggleKeyReveal(){
+  const input=document.getElementById('api-key');
+  if(keyRevealed){
+    // Hide again
+    input.type='password';
+    document.getElementById('key-reveal-btn').textContent='👁';
+    keyRevealed=false;
+    return;
+  }
+  const pwd=localStorage.getItem(KEY_PWD_STORAGE);
+  if(!pwd){
+    // No password set yet — prompt to set one
+    const newPwd=prompt('Set a password to protect your API key (min 4 chars):');
+    if(!newPwd||newPwd.length<4){alert('Password must be at least 4 characters.');return;}
+    const confirm=prompt('Confirm password:');
+    if(newPwd!==confirm){alert('Passwords do not match.');return;}
+    localStorage.setItem(KEY_PWD_STORAGE,newPwd);
+    // Reveal immediately after setting
+    input.type='text';
+    document.getElementById('key-reveal-btn').textContent='🔒';
+    keyRevealed=true;
+    log('Key password set. Key is now visible.','good');
   } else {
-    smsOn=false;
-    document.getElementById('sms-config-card').style.display='none';
-    updateSMSBtn();
-    log('SMS alerts disabled.');
+    // Show password modal
+    document.getElementById('key-modal').style.display='flex';
+    setTimeout(()=>document.getElementById('reveal-pwd-input').focus(),100);
   }
 }
 
-function updateSMSBtn(){
-  const btn=document.getElementById('sms-btn');
-  if(smsOn){
-    btn.textContent='SMS: On';
-    btn.style.color='var(--green)';
-    btn.style.borderColor='var(--green-border)';
+function checkRevealPwd(){
+  const entered=document.getElementById('reveal-pwd-input').value;
+  const stored=localStorage.getItem(KEY_PWD_STORAGE);
+  if(entered===stored){
+    document.getElementById('api-key').type='text';
+    document.getElementById('key-reveal-btn').textContent='🔒';
+    keyRevealed=true;
+    closeKeyModal();
+    log('Key revealed.','good');
   } else {
-    btn.textContent='SMS: Off';
-    btn.style.color='';
-    btn.style.borderColor='';
+    document.getElementById('reveal-pwd-error').style.display='block';
+    document.getElementById('reveal-pwd-input').value='';
+    document.getElementById('reveal-pwd-input').focus();
   }
 }
 
-async function sendSMS(body){
-  const url=localStorage.getItem('twilio_url');
-  const from=localStorage.getItem('twilio_from');
-  const to=localStorage.getItem('twilio_to');
-  if(!url||!from||!to){log('SMS not configured — skipping.','warn');return false;}
-  try{
-    await fetch(url,{
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:new URLSearchParams({body,from,to})
-    });
-    log('📱 SMS sent: '+body.slice(0,60)+'...','good');
-    return true;
-  }catch(e){
-    log('SMS failed: '+e.message,'warn');
-    return false;
-  }
+function closeKeyModal(){
+  document.getElementById('key-modal').style.display='none';
+  document.getElementById('reveal-pwd-input').value='';
+  document.getElementById('reveal-pwd-error').style.display='none';
 }
 
-async function testSMS(){
-  const st=document.getElementById('sms-config-status');
-  st.textContent='Sending test...';st.style.color='var(--text3)';
-  const ok=await sendSMS('Test from Reversal Scanner — TQQQ · BMNR · QBTS. SMS alerts are working!');
-  if(ok){st.textContent='✓ Test SMS sent! Check your phone.';st.style.color='var(--green)';}
-  else{st.textContent='Failed — check Twilio config.';st.style.color='var(--red)';}
-}
-
-// ---- WHATSAPP ----
-let waOn=false;
-let waAlertedThisScan={};
-
-function toggleWA(){
-  if(!waOn){
-    document.getElementById('wa-config-card').style.display='block';
-    const url=localStorage.getItem('wa_url')||localStorage.getItem('twilio_url')||'';
-    const from=localStorage.getItem('wa_from')||'';
-    const to=localStorage.getItem('wa_to')||'';
-    if(url) document.getElementById('wa-url').value=url;
-    if(from) document.getElementById('wa-from').value=from;
-    if(to) document.getElementById('wa-to').value=to;
-    if(url&&from&&to){
-      waOn=true;updateWABtn();
-      document.getElementById('wa-config-status').textContent='✓ Using saved config.';
-      document.getElementById('wa-config-status').style.color='var(--green)';
-      log('WhatsApp alerts enabled.','good');
-    } else {
-      log('Fill in WhatsApp config below.','warn');
-    }
-  } else {
-    waOn=false;
-    document.getElementById('wa-config-card').style.display='none';
-    updateWABtn();
-    log('WhatsApp alerts disabled.');
-  }
-}
-
-function saveWAConfig(){
-  const url=document.getElementById('wa-url').value.trim();
-  const from=document.getElementById('wa-from').value.trim();
-  const to=document.getElementById('wa-to').value.trim();
-  const st=document.getElementById('wa-config-status');
-  if(!url||!from||!to){st.textContent='Fill in all three fields.';st.style.color='var(--red)';return;}
-  localStorage.setItem('wa_url',url);localStorage.setItem('wa_from',from);localStorage.setItem('wa_to',to);
-  waOn=true;updateWABtn();
-  st.textContent='✓ Saved and enabled.';st.style.color='var(--green)';
-  log('WhatsApp alerts enabled.','good');
-}
-
-function updateWABtn(){
-  const btn=document.getElementById('wa-btn');
-  if(waOn){btn.textContent='WhatsApp: On';btn.style.color='#25d366';btn.style.borderColor='rgba(37,211,102,0.4)';}
-  else{btn.textContent='WhatsApp: Off';btn.style.color='';btn.style.borderColor='';}
-}
-
-async function sendWA(body){
-  const url=localStorage.getItem('wa_url')||localStorage.getItem('twilio_url');
-  const from=localStorage.getItem('wa_from');
-  const to=localStorage.getItem('wa_to');
-  if(!url||!from||!to){log('WhatsApp not configured.','warn');return false;}
-  try{
-    await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({body,from,to})});
-    log('💬 WhatsApp sent: '+body.slice(0,60)+'...','good');
-    return true;
-  }catch(e){log('WhatsApp failed: '+e.message,'warn');return false;}
-}
-
-async function testWA(){
-  const st=document.getElementById('wa-config-status');
-  st.textContent='Sending...';st.style.color='var(--text3)';
-  const ok=await sendWA('💬 Test from Reversal Scanner — WhatsApp alerts are working!');
-  st.textContent=ok?'✓ Sent! Check WhatsApp.':'Failed — check config.';
-  st.style.color=ok?'var(--green)':'var(--red)';
-}
+// Close modal on backdrop click
+document.getElementById('key-modal').addEventListener('click',function(e){
+  if(e.target===this) closeKeyModal();
+});
 
 // ---- PUSH NOTIFICATIONS ----
 let pushOn=false;
 let pushAlertedThisScan={};
+// Auto-sync: if user already granted permission in a previous session, enable push immediately
+if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
+  pushOn=true;
+}
 
 function togglePush(){
+  // Auto-sync pushOn with actual browser permission state
+  if(Notification.permission==='granted') pushOn=true;
+
   if(!pushOn){
     document.getElementById('push-config-card').style.display='block';
     if(Notification.permission==='granted'){
-      pushOn=true;updatePushBtn();
-      document.getElementById('push-status').textContent='✓ Permission already granted.';
-      document.getElementById('push-status').style.color='var(--green)';
+      pushOn=true;
+      updatePushBtn();
+      const st=document.getElementById('push-status');
+      st.textContent='✓ Notifications already enabled — ready to fire alerts.';
+      st.style.color='var(--green)';
+      document.getElementById('push-request-btn').textContent='✓ Already enabled';
+      document.getElementById('push-request-btn').style.opacity='0.5';
       log('Push notifications enabled.','good');
     } else {
       log('Click "Enable notifications" to allow browser push alerts.','warn');
@@ -1168,78 +1037,117 @@ function togglePush(){
 
 async function requestPushPermission(){
   const st=document.getElementById('push-status');
-  if(!('Notification' in window)){st.textContent='Not supported in this browser.';st.style.color='var(--red)';return;}
+  if(!('Notification' in window)){
+    st.textContent='Not supported in this browser.';st.style.color='var(--red)';return;
+  }
+  // Already granted — just enable
+  if(Notification.permission==='granted'){
+    pushOn=true;updatePushBtn();
+    st.textContent='✓ Already enabled! Alerts will fire automatically.';st.style.color='var(--green)';
+    document.getElementById('push-request-btn').textContent='✓ Enabled';
+    document.getElementById('push-request-btn').style.opacity='0.5';
+    log('Push notifications enabled.','good');
+    return;
+  }
   const perm=await Notification.requestPermission();
   if(perm==='granted'){
     pushOn=true;updatePushBtn();
-    st.textContent='✓ Notifications enabled!';st.style.color='var(--green)';
+    st.textContent='✓ Notifications enabled! Alerts will fire automatically.';st.style.color='var(--green)';
     log('Push notifications enabled.','good');
     document.getElementById('push-request-btn').textContent='✓ Enabled';
     document.getElementById('push-request-btn').style.opacity='0.5';
   } else {
-    st.textContent='Permission denied. Enable in browser settings.';st.style.color='var(--red)';
+    st.textContent='Permission denied. Click the lock icon in your browser address bar to allow.';
+    st.style.color='var(--red)';
     log('Push notification permission denied.','warn');
   }
 }
 
-function sendPush(title, body, icon='📈'){
-  if(!pushOn||Notification.permission!=='granted') return;
+function sendPush(title,body){
+  // Use Notification.permission as source of truth — not just pushOn flag
+  if(Notification.permission!=='granted') return;
   try{
-    new Notification(icon+' '+title,{body,icon:'/favicon.ico',badge:'/favicon.ico',tag:'reversal-scanner',requireInteraction:true});
-    log('🔔 Push sent: '+title,'good');
+    new Notification('📈 '+title,{body,tag:'sk-reversal-'+Date.now(),requireInteraction:true});
+    log('🔔 Push: '+title,'good');
   }catch(e){log('Push failed: '+e.message,'warn');}
 }
 
 function testPush(){
   const st=document.getElementById('push-status');
-  if(Notification.permission!=='granted'){st.textContent='Enable notifications first.';st.style.color='var(--red)';return;}
-  sendPush('Test Alert — Reversal Scanner','This is a test push notification. Alerts will appear like this!','🔔');
-  st.textContent='✓ Test notification sent!';st.style.color='var(--green)';
+  // Only check actual browser permission — not pushOn flag
+  if(Notification.permission!=='granted'){
+    st.textContent='Click "Enable notifications" first, then try again.';
+    st.style.color='var(--red)';
+    return;
+  }
+  // Auto-sync pushOn
+  pushOn=true;updatePushBtn();
+  sendPush('Test — SK Trading Reversal Scanner','Push notifications are working! Launch alerts will appear like this.');
+  st.textContent='✓ Test notification sent! Check your screen/taskbar.';
+  st.style.color='var(--green)';
 }
 
 function updatePushBtn(){
   const btn=document.getElementById('push-btn');
-  if(pushOn){btn.textContent='Push: On';btn.style.color='var(--blue)';btn.style.borderColor='rgba(59,130,246,0.4)';}
-  else{btn.textContent='Push: Off';btn.style.color='';btn.style.borderColor='';}
+  const lbl=document.getElementById('push-label');
+  if(pushOn){
+    btn.textContent='🔔 Push: On';
+    btn.style.color='var(--green)';btn.style.borderColor='var(--green-border)';
+    if(lbl){lbl.textContent='Alerts active';lbl.style.color='var(--green)';}
+    // Update enable button if it exists in DOM
+    const rb=document.getElementById('push-request-btn');
+    if(rb){rb.textContent='✓ Enabled';rb.style.opacity='0.5';}
+  } else {
+    btn.textContent='🔔 Push: Off';
+    btn.style.color='';btn.style.borderColor='';
+    if(lbl){lbl.textContent='';lbl.style.color='';}
+  }
 }
 
-// ---- UNIFIED ALERT SENDER — fires SMS + WhatsApp + Push independently ----
+// ---- ALERT SENDER — push only ----
 async function maybeSendSMSForResult(r){
-  const ticker=r.ticker;
-  const alreadyAlerted=smsAlertedThisScan[ticker]||waAlertedThisScan[ticker]||pushAlertedThisScan[ticker];
-
-  let launchBody='', watchBody='', pushTitle='', pushBody='';
-
+  if(!pushOn) return;
+  if(pushAlertedThisScan[r.ticker]) return;
+  let title='',body='';
   if(r.score>=5){
-    launchBody=`🚀 LAUNCH ALERT — ${ticker} ${r.score}/6 signals\nPrice: $${r.price.toFixed(2)} · RSI: ${r.rsi||'—'}\nStop: $${r.stopLoss.toFixed(2)} · Target 2:1: $${r.target2.toFixed(2)}\nPullback: ${r.pullbackPct}% · Vol: ${r.volRatio}x\nNot financial advice.`;
-    pushTitle=`🚀 LAUNCH — ${ticker} ${r.score}/6`;
-    pushBody=`$${r.price.toFixed(2)} · RSI ${r.rsi||'—'} · Stop $${r.stopLoss.toFixed(2)} · Target $${r.target2.toFixed(2)}`;
+    title=`🚀 LAUNCH — ${r.ticker} ${r.score}/6`;
+    body=`$${r.price.toFixed(2)} · RSI ${r.rsi||'—'} · Stop $${r.stopLoss.toFixed(2)} · Target $${r.target2.toFixed(2)} · Pullback ${r.pullbackPct}%`;
   } else if(r.score>=3){
-    watchBody=`👀 WATCH — ${ticker} ${r.score}/6 signals\nPrice: $${r.price.toFixed(2)} · RSI: ${r.rsi||'—'} · Pullback: ${r.pullbackPct}%\nNot full confluence yet.`;
-    pushTitle=`👀 WATCH — ${ticker} ${r.score}/6`;
-    pushBody=`$${r.price.toFixed(2)} · RSI ${r.rsi||'—'} · ${r.pullbackPct}% pullback`;
+    title=`👀 WATCH — ${r.ticker} ${r.score}/6`;
+    body=`$${r.price.toFixed(2)} · RSI ${r.rsi||'—'} · ${r.pullbackPct}% pullback`;
   }
-
-  const msgBody=launchBody||watchBody;
-  if(!msgBody) return;
-
-  // SMS
-  if(smsOn&&!smsAlertedThisScan[ticker]){
-    smsAlertedThisScan[ticker]=r.score;
-    await sendSMS(msgBody);
-  }
-  // WhatsApp
-  if(waOn&&!waAlertedThisScan[ticker]){
-    waAlertedThisScan[ticker]=r.score;
-    await sendWA(msgBody);
-  }
-  // Push
-  if(pushOn&&!pushAlertedThisScan[ticker]&&pushTitle){
-    pushAlertedThisScan[ticker]=r.score;
-    sendPush(pushTitle,pushBody);
+  if(title){
+    pushAlertedThisScan[r.ticker]=r.score;
+    sendPush(title,body);
   }
 }
 
+// ---- INDICATOR PANEL — shown below each alert card ----
+function buildIndicatorPanel(r){
+  const sig=[
+    {name:'RSI (14)',   val:r.rsi!=null?r.rsi.toFixed(1):'—',   threshold:'< 30',   on:r.signals[0], unit:''},
+    {name:'MACD cross', val:r.signals[1]?'Crossed ↑':'Not yet', threshold:'Bull cross',on:r.signals[1], unit:''},
+    {name:'MA cross',   val:r.signals[2]?'MA20 > MA50':'MA20 < MA50',threshold:'MA20>MA50',on:r.signals[2],unit:''},
+    {name:'Vol ratio',  val:r.volRatio+'×',                       threshold:'≥ 1.8×', on:r.signals[3], unit:''},
+    {name:'BB position',val:r.bbPct+'%',                          threshold:'< 20%',  on:r.signals[4], unit:''},
+    {name:'Pullback',   val:r.pullbackPct+'%',                    threshold:'≥ 10%',  on:r.signals[5], unit:''},
+  ];
+  const rows=sig.map(s=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${s.on?'var(--green)':'var(--border2)'};flex-shrink:0;"></div>
+        <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">${s.name}</span>
+      </div>
+      <div style="text-align:right;">
+        <span style="font-family:var(--mono);font-size:14px;font-weight:600;color:${s.on?'var(--green)':'var(--text)'};">${s.val}</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:6px;">threshold: ${s.threshold}</span>
+      </div>
+    </div>`).join('');
+  return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:10px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Indicator values — ${r.score}/6 signals met</div>
+    ${rows}
+  </div>`;
+}
 function sortTable(col){
   if(sortCol===col) sortAsc=!sortAsc;
   else{sortCol=col;sortAsc=col==='ticker'||col==='name';}
@@ -1843,9 +1751,10 @@ function exRenderAlerts(){
         <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
         <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
       </div>
-      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}</div>
+      <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}</div>
       <div class="signals">${dotsHtml}</div>
-      <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:11px;padding:6px 0;">+ Log trade</button>
+      ${buildIndicatorPanel(r)}
+      <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
     </div>`;
   });
 }
@@ -1866,6 +1775,9 @@ function exToggleAuto(){
     exLog('Auto-scan off.');
   }
 }
+
+// On load: sync push button state if permission already granted
+updatePushBtn();
 </script>
 </body>
 </html>
