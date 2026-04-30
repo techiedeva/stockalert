@@ -224,27 +224,25 @@ tr:hover td{background:var(--surface2);}
 
 <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
 
+<!-- PUSH NOTIFICATION CONFIG CARD — outside tabs so always accessible -->
+<div id="push-config-card" style="display:none;background:var(--surface);border-bottom:2px solid var(--blue);padding:14px 24px;">
+  <div style="max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--blue);font-weight:600;">🔔 Push Notifications</div>
+    <div style="font-size:13px;color:var(--text2);">Alerts pop up on your screen even when tab is minimized. Works on Chrome, Edge, Firefox, Safari (iOS 16.4+).</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+      <button class="btn" onclick="requestPushPermission()" id="push-request-btn" style="font-size:13px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
+      <button class="btn" onclick="testPush()" style="font-size:13px;">Send test</button>
+      <span id="push-status" style="font-size:13px;color:var(--text3);font-family:var(--mono);"></span>
+    </div>
+  </div>
+</div>
+
 <div id="tab-scanner" class="tab-page active">
 <div class="container">
 
   <div class="key-prompt" id="key-prompt">
     <span style="font-size:20px;">🔑</span>
     <span>Paste your <strong>Twelve Data API key</strong> above and click <strong>Run scan</strong>. Get a free key at <a href="https://twelvedata.com" target="_blank" style="color:inherit;text-decoration:underline;">twelvedata.com</a> (800 calls/day free).</span>
-  </div>
-
-  <!-- PUSH NOTIFICATION CONFIG CARD -->
-  <div id="push-config-card" style="display:none;background:var(--surface);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:10px;">🔔 Browser Push Notifications — instant, free, no signup</div>
-    <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:11px;font-family:var(--mono);color:var(--text2);line-height:1.8;margin-bottom:12px;">
-      Alerts pop up on your desktop or phone even when the tab is in the background.<br>
-      Works on Chrome, Edge, Firefox, Safari (macOS/iOS 16.4+).<br>
-      <span style="color:var(--amber);">Must be hosted on https:// (GitHub Pages works perfectly).</span>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-primary" onclick="requestPushPermission()" id="push-request-btn" style="font-size:13px;padding:6px 14px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
-      <button class="btn" onclick="testPush()" style="font-size:13px;padding:6px 14px;">Send test notification</button>
-      <span id="push-status" style="font-size:13px;color:var(--text3);font-family:var(--mono);"></span>
-    </div>
   </div>
 
   <!-- STATS -->
@@ -271,7 +269,7 @@ tr:hover td{background:var(--surface2);}
         <thead>
           <tr>
             <th onclick="sortTable('ticker')">Ticker ↕</th>
-            <th onclick="sortTable('name')">Company</th>
+            <th onclick="sortTable('name')">Company <span style="font-size:10px;color:var(--text3);">(click row for indicators)</span></th>
             <th onclick="sortTable('price')">Price ↕</th>
             <th onclick="sortTable('change')">Chg% ↕</th>
             <th onclick="sortTable('rsi')">RSI ↕</th>
@@ -922,7 +920,22 @@ function renderResults(){
       const rsiClass=r.rsi<30?'pos':r.rsi>70?'neg':'neu';
       const scoreClass=r.score>=5?'pos':r.score>=3?'amber':'neu';
       const dots=r.signals.map((s,i)=>`<div class="mini-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
-      return`<tr>
+      const rowId='ind-'+r.ticker;
+      // Build inline indicator values string for the detail row
+      const indVals=[
+        {label:'RSI',val:r.rsi!=null?r.rsi.toFixed(1):'—',ok:r.signals[0],thr:'<30'},
+        {label:'MACD',val:r.signals[1]?'✓ Crossed':'✗ No',ok:r.signals[1],thr:'Bull cross'},
+        {label:'MA',val:r.signals[2]?'✓ MA20>MA50':'✗ MA20<MA50',ok:r.signals[2],thr:'MA20>MA50'},
+        {label:'Vol',val:r.volRatio+'×',ok:r.signals[3],thr:'≥1.8×'},
+        {label:'BB%',val:r.bbPct+'%',ok:r.signals[4],thr:'<20%'},
+        {label:'Pull',val:r.pullbackPct+'%',ok:r.signals[5],thr:'≥10%'},
+      ].map(i=>`<span style="margin-right:14px;font-family:var(--mono);font-size:12px;">
+        <span style="color:${i.ok?'var(--green)':'var(--text3)'};">●</span>
+        <strong style="color:var(--text2);">${i.label}:</strong>
+        <span style="color:${i.ok?'var(--green)':'var(--text)'};">${i.val}</span>
+        <span style="color:var(--text3);font-size:11px;">(${i.thr})</span>
+      </span>`).join('');
+      return`<tr onclick="toggleIndicatorRow('${rowId}')" style="cursor:pointer;" title="Click to show/hide indicator values">
         <td class="ticker-cell">${r.ticker}</td>
         <td style="color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;">${r.name}</td>
         <td>$${r.price.toFixed(2)}</td>
@@ -934,10 +947,23 @@ function renderResults(){
         <td style="color:var(--red);">$${r.stopLoss.toFixed(2)}</td>
         <td style="color:var(--green);">$${r.target2.toFixed(2)}</td>
         <td style="color:var(--text2);">$${r.atr}</td>
-        <td><button class="btn" onclick='jjPrefill(${JSON.stringify(r)})' style="font-size:10px;padding:4px 10px;color:var(--accent);border-color:var(--green-border);">+ Log</button></td>
+        <td><button class="btn" onclick='event.stopPropagation();jjPrefill(${JSON.stringify(r)})' style="font-size:10px;padding:4px 10px;color:var(--accent);border-color:var(--green-border);">+ Log</button></td>
+      </tr>
+      <tr id="${rowId}" style="display:none;background:var(--surface2);">
+        <td colspan="12" style="padding:10px 16px;">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-right:10px;text-transform:uppercase;letter-spacing:1px;">Indicators:</span>
+            ${indVals}
+          </div>
+        </td>
       </tr>`;
     }).join('');
   }
+}
+
+function toggleIndicatorRow(id){
+  const row=document.getElementById(id);
+  if(row) row.style.display=row.style.display==='none'?'table-row':'none';
 }
 
 
