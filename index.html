@@ -245,6 +245,22 @@ tr:hover td{background:var(--surface2);}
     <span>Paste your <strong>Twelve Data API key</strong> above and click <strong>Run scan</strong>. Get a free key at <a href="https://twelvedata.com" target="_blank" style="color:inherit;text-decoration:underline;">twelvedata.com</a> (800 calls/day free).</span>
   </div>
 
+  <!-- WATCHLIST MANAGER -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+      <div style="font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Watchlist — <span id="watchlist-count" style="color:var(--accent);">0</span> tickers · click to remove</div>
+      <button class="btn btn-danger" onclick="resetWatchlist()" style="font-size:12px;padding:4px 10px;">Reset to defaults</button>
+    </div>
+    <div id="watchlist-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="manual-ticker" placeholder="Add ticker e.g. AMD" maxlength="6"
+        style="width:140px;padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:14px;text-transform:uppercase;outline:none;"
+        onkeydown="if(event.key==='Enter')addManualTicker()"/>
+      <button class="btn btn-primary" onclick="addManualTicker()" style="font-size:13px;">+ Add ticker</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono);">Additions saved across sessions</span>
+    </div>
+  </div>
+
   <!-- STATS -->
   <div class="stats-row">
     <div class="stat"><div class="lbl">Scanned</div><div class="val neu" id="s-scanned">—</div></div>
@@ -289,12 +305,12 @@ tr:hover td{background:var(--surface2);}
 
   <div id="empty-state" class="empty">
     <div class="icon">📡</div>
-    <div>Run a scan to find reversal setups across TQQQ, BMNR and QBTS</div>
+    <div>Run a scan to find reversal setups across your watchlist</div>
   </div>
 
   <!-- LOG -->
   <div class="log-wrap">
-    <div class="log-line">Scanner ready. Watching TQQQ · BMNR · QBTS. Paste your Twelve Data key and click Run scan.</div>
+    <div class="log-line">Scanner ready. Watching <span id="log-tickers">12 tickers</span>. Paste your Twelve Data key and click Run scan.</div>
   </div>
 
 </div>
@@ -559,11 +575,35 @@ tr:hover td{background:var(--surface2);}
 
 <script>
 // ---- CUSTOM WATCHLIST ----
-const SP50=[
-  {ticker:'TQQQ',name:'ProShares UltraPro QQQ'},
-  {ticker:'BMNR',name:'BitMiner Inc.'},
-  {ticker:'QBTS',name:'D-Wave Quantum Inc.'},
+// Default watchlist — stored in localStorage so manual additions persist across sessions
+const DEFAULT_WATCHLIST=[
+  {ticker:'TQQQ', name:'ProShares UltraPro QQQ (3× Nasdaq)'},
+  {ticker:'BMNR', name:'BitMiner Inc.'},
+  {ticker:'QBTS', name:'D-Wave Quantum Inc.'},
+  {ticker:'SOXL', name:'Direxion Daily Semiconductors 3×'},
+  {ticker:'FNGU', name:'MicroSectors FANG+ 3×'},
+  {ticker:'TECL', name:'Direxion Daily Tech Bull 3×'},
+  {ticker:'SPXL', name:'Direxion Daily S&P 500 Bull 3×'},
+  {ticker:'UPRO', name:'ProShares UltraPro S&P 500 3×'},
+  {ticker:'QLD',  name:'ProShares Ultra QQQ 2×'},
+  {ticker:'TSLA', name:'Tesla Inc.'},
+  {ticker:'QQQ',  name:'Invesco QQQ Trust'},
+  {ticker:'SPY',  name:'SPDR S&P 500 ETF'},
 ];
+
+function loadWatchlist(){
+  const saved=localStorage.getItem('watchlist_v2');
+  if(saved){
+    try{ return JSON.parse(saved); }catch(e){}
+  }
+  return [...DEFAULT_WATCHLIST];
+}
+
+function saveWatchlist(list){
+  localStorage.setItem('watchlist_v2',JSON.stringify(list));
+}
+
+let SP50=loadWatchlist();
 
 const TD_BASE='https://api.twelvedata.com';
 const EXCHANGES=['NASDAQ','NYSE',''];
@@ -580,12 +620,75 @@ let abortScan=false;
   const k=localStorage.getItem('td_key')||'';
   if(k) document.getElementById('api-key').value=k;
   else document.getElementById('key-prompt').classList.remove('hidden');
+  renderWatchlistChips();
 })();
 
 function getKey(){ return document.getElementById('api-key').value.trim(); }
 function saveKey(){
   const k=getKey();
   if(k){ localStorage.setItem('td_key',k); log('API key saved.','good'); }
+}
+
+function renderWatchlistChips(){
+  const wrap=document.getElementById('watchlist-chips');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  SP50.forEach(({ticker,name})=>{
+    const chip=document.createElement('div');
+    chip.title='Click to remove '+ticker;
+    chip.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;font-family:var(--mono);font-size:13px;color:var(--text);cursor:pointer;';
+    chip.innerHTML=`<span>${ticker}</span><span style="color:var(--text3);font-size:11px;">${name.split(' ').slice(0,2).join(' ')}</span><span style="color:var(--red);font-size:12px;margin-left:2px;">×</span>`;
+    chip.onclick=()=>removeTicker(ticker);
+    chip.onmouseenter=()=>chip.style.borderColor='var(--red)';
+    chip.onmouseleave=()=>chip.style.borderColor='var(--border2)';
+    wrap.appendChild(chip);
+  });
+  const cnt=document.getElementById('watchlist-count');
+  if(cnt) cnt.textContent=SP50.length;
+}
+
+function addManualTicker(){
+  const input=document.getElementById('manual-ticker');
+  const ticker=(input.value||'').toUpperCase().trim();
+  if(!ticker){return;}
+  if(SP50.find(s=>s.ticker===ticker)){
+    log(ticker+' is already in your watchlist.','warn');
+    input.value='';return;
+  }
+  if(SP50.length>=25){
+    log('Watchlist full (max 25). Remove a ticker first.','warn');return;
+  }
+  SP50.push({ticker,name:ticker+' (custom)'});
+  saveWatchlist(SP50);
+  renderWatchlistChips();
+  input.value='';
+  log(ticker+' added to watchlist.','good');
+  updateEmptyState();
+}
+
+function removeTicker(ticker){
+  if(SP50.length<=1){log('Cannot remove — need at least 1 ticker.','warn');return;}
+  SP50=SP50.filter(s=>s.ticker!==ticker);
+  saveWatchlist(SP50);
+  renderWatchlistChips();
+  log(ticker+' removed from watchlist.');
+  updateEmptyState();
+}
+
+function resetWatchlist(){
+  if(!confirm('Reset watchlist to defaults?')) return;
+  SP50=[...DEFAULT_WATCHLIST];
+  saveWatchlist(SP50);
+  renderWatchlistChips();
+  log('Watchlist reset to defaults.','good');
+  updateEmptyState();
+}
+
+function updateEmptyState(){
+  const el=document.getElementById('empty-state');
+  if(el) el.querySelector('div:last-child').textContent='Run a scan to find reversal setups across '+SP50.map(s=>s.ticker).join(', ');
+  const hdr=document.querySelector('.logo-sub');
+  if(hdr) hdr.innerHTML=SP50.map(s=>s.ticker).join(' · ')+' · 15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span>';
 }
 
 function log(msg,cls=''){
@@ -607,7 +710,7 @@ function setProgress(pct){
   document.getElementById('progress-bar').style.width=pct+'%';
 }
 
-// ---- TWELVE DATA FETCH — no batching needed for 3 tickers ----
+// ---- TWELVE DATA FETCH — 12 tickers, pace at 8s each to stay under 8 calls/min ----
 async function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 async function tdGet(ticker){
@@ -795,7 +898,7 @@ async function startScan(){
   clearUI();
 
   document.getElementById('empty-state').style.display='none';
-  log('Starting scan of TQQQ, BMNR, QBTS...');
+  log('Starting scan of '+SP50.length+' tickers: '+SP50.map(s=>s.ticker).join(', ')+'...');
 
   const BATCH_SIZE=3; // only 3 tickers — no rate limit concern
 
@@ -1806,6 +1909,7 @@ function exToggleAuto(){
 
 // On load: sync push button state if permission already granted
 updatePushBtn();
+updateEmptyState();
 </script>
 </body>
 </html>
