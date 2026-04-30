@@ -1036,27 +1036,29 @@ if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
 }
 
 function togglePush(){
-  // Auto-sync pushOn with actual browser permission state
-  if(Notification.permission==='granted') pushOn=true;
-
   if(!pushOn){
-    document.getElementById('push-config-card').style.display='block';
+    // Turning ON
     if(Notification.permission==='granted'){
       pushOn=true;
       updatePushBtn();
+      document.getElementById('push-config-card').style.display='block';
       const st=document.getElementById('push-status');
-      st.textContent='✓ Notifications already enabled — ready to fire alerts.';
+      st.textContent='✓ Push alerts active — Launch alerts will notify you automatically.';
       st.style.color='var(--green)';
-      document.getElementById('push-request-btn').textContent='✓ Already enabled';
-      document.getElementById('push-request-btn').style.opacity='0.5';
+      const rb=document.getElementById('push-request-btn');
+      if(rb){rb.textContent='✓ Enabled';rb.style.opacity='0.5';}
       log('Push notifications enabled.','good');
     } else {
-      log('Click "Enable notifications" to allow browser push alerts.','warn');
+      document.getElementById('push-config-card').style.display='block';
+      document.getElementById('push-status').textContent='Click "Enable notifications" to allow browser alerts.';
+      document.getElementById('push-status').style.color='var(--amber)';
+      log('Click "Enable notifications" in the banner to allow push alerts.','warn');
     }
   } else {
+    // Turning OFF
     pushOn=false;
-    document.getElementById('push-config-card').style.display='none';
     updatePushBtn();
+    document.getElementById('push-config-card').style.display='none';
     log('Push notifications disabled.');
   }
 }
