@@ -179,9 +179,10 @@ tr:hover td{background:var(--surface2);}
     </div>
   </div>
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('scanner',this)">Scanner</button>
+    <button class="tab-btn active" onclick="switchTab('scanner',this)">Reversal Scanner</button>
     <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn">Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span></button>
     <button class="tab-btn" onclick="switchTab('exchange',this)">Exchange Scanner</button>
+    <button class="tab-btn" onclick="switchTab('bullrun',this)">🚀 Bull Run</button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <div class="status-pill"><div class="status-dot" id="status-dot"></div><span id="status-text">Ready</span></div>
@@ -572,6 +573,122 @@ tr:hover td{background:var(--surface2);}
 
 </div>
 </div><!-- end tab-exchange -->
+
+<!-- ===== BULL RUN SCANNER TAB ===== -->
+<div id="tab-bullrun" class="tab-page">
+<div class="container">
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:4px;">🚀 Bull Run Scanner</div>
+        <div style="font-size:14px;color:var(--text2);">Finds stocks showing early bull run characteristics — momentum building, trend confirmed, volume expanding</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="status-pill"><div class="status-dot" id="br-dot"></div><span id="br-status-text">Ready</span></div>
+        <span id="br-last-scan" style="font-size:12px;color:var(--text3);font-family:var(--mono);"></span>
+      </div>
+    </div>
+
+    <!-- SIGNAL LEGEND -->
+    <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:12px;font-family:var(--mono);color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">6 Bull Run Signals</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:13px;font-family:var(--mono);">
+        <div><span style="color:var(--green);">●</span> RSI 50–65 <span style="color:var(--text3);">— rising momentum, not overbought</span></div>
+        <div><span style="color:var(--green);">●</span> MACD above zero <span style="color:var(--text3);">— buyers in control</span></div>
+        <div><span style="color:var(--green);">●</span> Price above MA50 <span style="color:var(--text3);">— short-term trend up</span></div>
+        <div><span style="color:var(--green);">●</span> Price above MA200 <span style="color:var(--text3);">— medium-term trend up</span></div>
+        <div><span style="color:var(--green);">●</span> Volume expanding <span style="color:var(--text3);">— last 5 bars > prior 5 bars avg</span></div>
+        <div><span style="color:var(--green);">●</span> BB squeeze <span style="color:var(--text3);">— bands narrowing, breakout building</span></div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--amber);font-family:var(--mono);">⚠ MA200 on 15-min bars = ~3 days of price history, not the traditional 200-day MA</div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="br-scan-btn" onclick="brStartScan()" style="background:var(--green);border-color:var(--green);color:#000;">▶ Find bull runs</button>
+      <button class="btn btn-danger" id="br-stop-btn" onclick="brStop()" style="display:none;">■ Stop</button>
+      <button class="btn" onclick="brClear()">Clear</button>
+      <div class="divider-v"></div>
+      <button class="btn" id="br-auto-btn" onclick="brToggleAuto()">Auto: Off</button>
+      <span style="font-size:12px;color:var(--text3);font-family:var(--mono);" id="br-auto-label"></span>
+      <div class="divider-v"></div>
+      <span style="font-size:13px;color:var(--text2);">Scanning: <strong id="br-ticker-list" style="color:var(--text);font-family:var(--mono);">your watchlist</strong></span>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none;" id="br-progress-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:13px;font-family:var(--mono);color:var(--text2);" id="br-progress-label">Initializing...</span>
+      <span style="font-size:13px;font-family:var(--mono);color:var(--green);" id="br-eta">Est. time: —</span>
+    </div>
+    <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+      <div id="br-progress-bar" style="height:4px;background:var(--green);width:0%;transition:width .4s;box-shadow:0 0 6px var(--green);border-radius:2px;"></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;font-family:var(--mono);color:var(--text3);">
+      <span>Scanned: <strong style="color:var(--text);" id="br-scanned">0</strong></span>
+      <span>Bull setups: <strong style="color:var(--green);" id="br-found">0</strong></span>
+      <span>API calls: <strong style="color:var(--text);" id="br-calls">0</strong></span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="br-stats-row" style="display:none;">
+    <div class="stat"><div class="lbl">Scanned</div><div class="val neu" id="br-s-scanned">—</div></div>
+    <div class="stat"><div class="lbl">🚀 Strong bull</div><div class="val green" id="br-s-strong">0</div></div>
+    <div class="stat"><div class="lbl">📈 Building</div><div class="val amber" id="br-s-building">0</div></div>
+    <div class="stat"><div class="lbl">Avg RSI</div><div class="val neu" id="br-s-rsi">—</div></div>
+    <div class="stat"><div class="lbl">Scan time</div><div class="val neu" id="br-s-time">—</div></div>
+    <div class="stat"><div class="lbl">API calls</div><div class="val neu" id="br-s-calls">—</div></div>
+  </div>
+
+  <!-- STRONG BULL ALERTS -->
+  <div id="br-strong-section" style="display:none;">
+    <div class="section-title">🚀 Strong bull setups — 5-6 signals</div>
+    <div class="alert-cards" id="br-strong-cards"></div>
+  </div>
+
+  <!-- BUILDING SECTION -->
+  <div id="br-building-section" style="display:none;">
+    <div class="section-title">📈 Building momentum — 4 signals</div>
+    <div class="alert-cards" id="br-building-cards"></div>
+  </div>
+
+  <!-- FULL TABLE -->
+  <div id="br-results-section" style="display:none;">
+    <div class="section-title">Full results — all scanned stocks</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticker</th><th>Company <span style="font-size:10px;color:var(--text3);">(click row for indicators)</span></th>
+            <th>Price</th><th>Chg%</th><th>RSI</th>
+            <th>Score</th><th>Signals</th>
+            <th>vs MA50</th><th>Vol trend</th>
+            <th>Stop</th><th>Target 2:1</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="br-results-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="br-empty" class="empty">
+    <div class="icon">🚀</div>
+    <div>Click "Find bull runs" to scan your watchlist for stocks showing bull run characteristics</div>
+  </div>
+
+  <div id="br-no-results" class="empty" style="display:none;">
+    <div class="icon">😴</div>
+    <div>No bull run setups found this scan.<br><span style="font-size:12px;opacity:.6;">Market may be bearish or consolidating. Try again when momentum picks up.</span></div>
+  </div>
+
+  <div class="log-wrap" id="br-log-wrap" style="margin-top:16px;">
+    <div class="log-line">Bull Run Scanner ready. Click "Find bull runs" to begin.</div>
+  </div>
+
+</div>
+</div><!-- end tab-bullrun -->
 
 <script>
 // ---- CUSTOM WATCHLIST ----
@@ -1904,6 +2021,398 @@ function exToggleAuto(){
     btn.textContent='Auto: Off';btn.style.color='';btn.style.borderColor='';
     lbl.textContent='';
     exLog('Auto-scan off.');
+  }
+}
+
+// ---- BULL RUN SCANNER ----
+let brAbort=false;
+let brAutoTimer=null;
+let brAutoOn=false;
+let brApiCalls=0;
+let brResults=[];
+
+function brLog(msg,cls=''){
+  const wrap=document.getElementById('br-log-wrap');
+  if(!wrap) return;
+  const el=document.createElement('div');
+  el.className='log-line '+(cls||'');
+  el.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+  wrap.prepend(el);
+  while(wrap.children.length>80) wrap.removeChild(wrap.lastChild);
+}
+
+function brSetStatus(state,text){
+  document.getElementById('br-dot').className='status-dot '+(state||'');
+  document.getElementById('br-status-text').textContent=text;
+}
+
+function brSetProgress(pct,label,eta){
+  document.getElementById('br-progress-bar').style.width=pct+'%';
+  if(label) document.getElementById('br-progress-label').textContent=label;
+  if(eta!==undefined) document.getElementById('br-eta').textContent=eta;
+}
+
+function brClear(){
+  brAbort=true; brResults=[];
+  ['br-strong-section','br-building-section','br-results-section','br-no-results'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('br-empty').style.display='block';
+  document.getElementById('br-stats-row').style.display='none';
+  document.getElementById('br-progress-card').style.display='none';
+  document.getElementById('br-progress-bar').style.width='0%';
+  brSetStatus('','Ready');
+}
+
+// ---- BULL RUN SIGNAL ENGINE ----
+function analyzeBullRun(ticker, name, values){
+  const vals=[...values].reverse(); // oldest first
+  const closes=vals.map(v=>parseFloat(v.close));
+  const highs=vals.map(v=>parseFloat(v.high));
+  const lows=vals.map(v=>parseFloat(v.low));
+  const volumes=vals.map(v=>parseFloat(v.volume)||0);
+  const n=closes.length;
+  const cp=closes[n-1];
+  const pp=closes[n-2]||cp;
+  const chgPct=(cp-pp)/pp*100;
+
+  // Indicators
+  const rsiArr=calcRSI(closes,14);
+  const cRSI=lastVal(rsiArr);
+  const ma50arr=calcEMA(closes,50);
+  const ma200arr=calcEMA(closes,200);
+  const cMA50=lastVal(ma50arr);
+  const cMA200=lastVal(ma200arr);
+  const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
+  const macdLine=closes.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
+  const validMacd=macdLine.filter(v=>v!=null);
+  const sigRaw=calcEMA(validMacd,9);
+  const sigLine=macdLine.map((v,i)=>{
+    if(v==null)return null;
+    const idx=macdLine.slice(0,i+1).filter(x=>x!=null).length-1;
+    return sigRaw[idx]??null;
+  });
+  const cMACD=lastVal(macdLine);
+  const cSig=lastVal(sigLine);
+
+  // Volume trend — avg last 5 bars vs avg prior 5 bars
+  const recentVol=volumes.slice(-5).reduce((a,b)=>a+b,0)/5;
+  const priorVol=volumes.slice(-10,-5).reduce((a,b)=>a+b,0)/5;
+  const volExpanding=priorVol>0&&recentVol>priorVol;
+  const volRatio=priorVol>0?parseFloat((recentVol/priorVol).toFixed(2)):1;
+
+  // BB squeeze — current bandwidth vs 20-bar avg bandwidth
+  const {up:bbUp,lo:bbLo}=calcBB(closes,20,2);
+  const cBBUp=lastVal(bbUp);
+  const cBBLo=lastVal(bbLo);
+  const curBW=cBBUp!=null&&cBBLo!=null?cBBUp-cBBLo:null;
+  // Avg bandwidth over last 20 bars
+  const bwArr=bbUp.map((u,i)=>u!=null&&bbLo[i]!=null?u-bbLo[i]:null).filter(v=>v!=null);
+  const avgBW=bwArr.length?bwArr.slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,bwArr.length):null;
+  const bbSqueeze=curBW!=null&&avgBW!=null&&curBW<avgBW*0.85; // bands 15%+ narrower than avg
+
+  // Price vs MA50 pct
+  const vsMA50=cMA50?parseFloat(((cp-cMA50)/cMA50*100).toFixed(2)):null;
+
+  // ATR for stop/target
+  const atr=calcATR(highs,lows,closes,14);
+  const stopLoss=parseFloat((cp-1.5*atr).toFixed(2));
+  const riskPerShare=cp-stopLoss;
+  const target2=parseFloat((cp+riskPerShare*2).toFixed(2));
+
+  // ---- 6 BULL RUN SIGNALS ----
+  // S1: RSI in 50-65 zone (rising momentum, not overbought)
+  const s1=cRSI!=null&&cRSI>=50&&cRSI<=65;
+  // S2: MACD line above zero (buyers in control)
+  const s2=cMACD!=null&&cMACD>0;
+  // S3: Price above MA50 (short-term trend bullish)
+  const s3=cMA50!=null&&cp>cMA50;
+  // S4: Price above MA200 (medium-term trend bullish on 15-min scale)
+  const s4=cMA200!=null&&cp>cMA200;
+  // S5: Volume expanding (last 5 bars > prior 5 bars)
+  const s5=volExpanding;
+  // S6: Bollinger Band squeeze (volatility compressing before breakout)
+  const s6=bbSqueeze;
+
+  const signals=[s1,s2,s3,s4,s5,s6];
+  const score=signals.filter(Boolean).length;
+
+  return{
+    ticker,name,price:cp,chgPct,
+    rsi:cRSI!=null?parseFloat(cRSI.toFixed(1)):null,
+    score,signals,
+    vsMA50,volRatio,
+    bbSqueeze,atr:parseFloat(atr.toFixed(3)),
+    stopLoss,target2,riskPerShare:parseFloat(riskPerShare.toFixed(2)),
+    cMACD:cMACD!=null?parseFloat(cMACD.toFixed(3)):null,
+  };
+}
+
+// Helper references — calcRSI, calcEMA, calcBB, calcATR already defined in main scanner above
+
+async function brFetchBars(ticker){
+  if(brAbort) throw new Error('aborted');
+  const key=getKey();
+  if(!key) throw new Error('no_key');
+  for(const exchange of EXCHANGES){
+    const params={symbol:ticker,interval:'15min',outputsize:'100'};
+    if(exchange) params.exchange=exchange;
+    const qs=new URLSearchParams({...params,apikey:key}).toString();
+    try{
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      const data=await res.json();
+      brApiCalls++;
+      document.getElementById('br-calls').textContent=brApiCalls;
+      document.getElementById('br-s-calls').textContent=brApiCalls;
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
+        continue;
+      }
+      if(data.values&&data.values.length>=50) return data.values;
+    }catch(e){
+      if(['invalid_key','no_key','aborted','rate_limit'].includes(e.message)) throw e;
+    }
+  }
+  return null;
+}
+
+function brRenderCards(){
+  const strong=brResults.filter(r=>r.score>=5).sort((a,b)=>b.score-a.score||b.rsi-a.rsi);
+  const building=brResults.filter(r=>r.score===4).sort((a,b)=>b.rsi-a.rsi);
+  const sigLabels=['RSI 50-65','MACD>0','Price>MA50','Price>MA200','Vol expanding','BB squeeze'];
+
+  function makeCard(r){
+    const chgClass=r.chgPct>=0?'pos':'neg';
+    const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
+    const indPanel=brBuildIndicatorPanel(r);
+    return`<div class="alert-card" style="border-color:var(--green-border);">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),transparent);"></div>
+      <div class="score-badge" style="background:var(--green-bg);color:var(--green);border-color:var(--green-border);">${r.score}/6</div>
+      <div class="ticker" style="color:var(--green);">${r.ticker}</div>
+      <div class="name">${r.name}</div>
+      <div class="price-row">
+        <div class="price">$${r.price.toFixed(2)}</div>
+        <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
+      </div>
+      <div class="levels">
+        <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
+        <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
+        <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
+        RSI ${r.rsi||'—'} · MACD ${r.cMACD||'—'} · Vol ${r.volRatio}× · ATR $${r.atr}
+        ${r.vsMA50!=null?' · '+( r.vsMA50>=0?'+':'')+r.vsMA50+'% vs MA50':''}
+      </div>
+      <div class="signals">${dotsHtml}</div>
+      ${indPanel}
+      <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+    </div>`;
+  }
+
+  // Strong
+  const sc=document.getElementById('br-strong-cards');
+  if(strong.length){
+    document.getElementById('br-strong-section').style.display='block';
+    sc.innerHTML=strong.map(makeCard).join('');
+  } else {
+    document.getElementById('br-strong-section').style.display='none';
+  }
+
+  // Building
+  const bc=document.getElementById('br-building-cards');
+  if(building.length){
+    document.getElementById('br-building-section').style.display='block';
+    bc.innerHTML=building.map(makeCard).join('');
+  } else {
+    document.getElementById('br-building-section').style.display='none';
+  }
+
+  // Full table
+  const sigLbl=['RSI 50-65','MACD>0','>MA50','>MA200','Vol↑','BB sq'];
+  if(brResults.length){
+    document.getElementById('br-results-section').style.display='block';
+    document.getElementById('br-results-body').innerHTML=brResults
+      .sort((a,b)=>b.score-a.score)
+      .map(r=>{
+        const chgClass=r.chgPct>=0?'pos':'neg';
+        const scoreColor=r.score>=5?'var(--green)':r.score>=4?'var(--amber)':'var(--text3)';
+        const dots=r.signals.map((s,i)=>`<div class="mini-dot ${s?'on':'off'}" title="${sigLbl[i]}"></div>`).join('');
+        const rowId='br-ind-'+r.ticker;
+        const indVals=[
+          {label:'RSI',val:r.rsi!=null?r.rsi.toFixed(1):'—',ok:r.signals[0],thr:'50-65'},
+          {label:'MACD',val:r.cMACD!=null?(r.cMACD>0?'+'+r.cMACD:r.cMACD):'—',ok:r.signals[1],thr:'>0'},
+          {label:'>MA50',val:r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'%':'—',ok:r.signals[2],thr:'above'},
+          {label:'>MA200',val:r.signals[3]?'✓ Yes':'✗ No',ok:r.signals[3],thr:'above'},
+          {label:'Vol',val:r.volRatio+'×',ok:r.signals[4],thr:'expanding'},
+          {label:'BB',val:r.bbSqueeze?'Squeeze':'Normal',ok:r.signals[5],thr:'squeeze'},
+        ].map(i=>`<span style="margin-right:12px;font-family:var(--mono);font-size:12px;">
+          <span style="color:${i.ok?'var(--green)':'var(--text3)'};">●</span>
+          <strong style="color:var(--text2);">${i.label}:</strong>
+          <span style="color:${i.ok?'var(--green)':'var(--text)'};">${i.val}</span>
+          <span style="color:var(--text3);font-size:11px;">(${i.thr})</span>
+        </span>`).join('');
+        return`<tr onclick="toggleBrRow('${rowId}')" style="cursor:pointer;">
+          <td style="font-weight:600;">${r.ticker}</td>
+          <td style="color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;">${r.name}</td>
+          <td>$${r.price.toFixed(2)}</td>
+          <td class="${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</td>
+          <td style="color:${r.rsi>=50&&r.rsi<=65?'var(--green)':r.rsi>65?'var(--red)':'var(--text2)'};">${r.rsi||'—'}</td>
+          <td><span style="color:${scoreColor};font-weight:600;">${r.score}/6</span></td>
+          <td><div class="score-cell">${dots}</div></td>
+          <td style="color:${r.vsMA50>=0?'var(--green)':'var(--red)'};">${r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'%':'—'}</td>
+          <td style="color:${r.signals[4]?'var(--green)':'var(--text2)'};">${r.volRatio}×</td>
+          <td style="color:var(--red);">$${r.stopLoss.toFixed(2)}</td>
+          <td style="color:var(--green);">$${r.target2.toFixed(2)}</td>
+          <td><button class="btn" onclick='event.stopPropagation();jjPrefill(${JSON.stringify(r)})' style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green-border);">+ Log</button></td>
+        </tr>
+        <tr id="${rowId}" style="display:none;background:var(--surface2);">
+          <td colspan="12" style="padding:10px 16px;">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-right:10px;text-transform:uppercase;letter-spacing:1px;">Indicators:</span>
+              ${indVals}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+  }
+}
+
+function toggleBrRow(id){
+  const row=document.getElementById(id);
+  if(row) row.style.display=row.style.display==='none'?'table-row':'none';
+}
+
+function brBuildIndicatorPanel(r){
+  const sig=[
+    {name:'RSI (14)',   val:r.rsi!=null?r.rsi.toFixed(1)+'  (50–65 zone)':'—', on:r.signals[0]},
+    {name:'MACD',       val:r.cMACD!=null?(r.cMACD>0?'+':'')+r.cMACD+' (above zero)':'—', on:r.signals[1]},
+    {name:'vs MA50',    val:r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'% above MA50':'—', on:r.signals[2]},
+    {name:'vs MA200',   val:r.signals[3]?'Above MA200 (3-day on 15min)':'Below MA200', on:r.signals[3]},
+    {name:'Volume',     val:r.volRatio+'× prior 5 bars '+(r.signals[4]?'✓ expanding':'✗ contracting'), on:r.signals[4]},
+    {name:'BB squeeze', val:r.bbSqueeze?'✓ Bands narrowing — breakout building':'✗ Normal bandwidth', on:r.signals[5]},
+  ];
+  const rows=sig.map(s=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${s.on?'var(--green)':'var(--border2)'};flex-shrink:0;"></div>
+        <span style="font-family:var(--mono);font-size:13px;color:var(--text2);">${s.name}</span>
+      </div>
+      <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${s.on?'var(--green)':'var(--text)'};">${s.val}</span>
+    </div>`).join('');
+  return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:10px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Bull Run Indicators — ${r.score}/6 signals</div>
+    ${rows}
+  </div>`;
+}
+
+async function brStartScan(){
+  const key=getKey();
+  if(!key){alert('Paste your Twelve Data API key first.');return;}
+  brAbort=false; brResults=[]; brApiCalls=0;
+  const scanStart=Date.now();
+
+  document.getElementById('br-progress-card').style.display='block';
+  document.getElementById('br-stats-row').style.display='grid';
+  ['br-strong-section','br-building-section','br-results-section','br-no-results'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('br-empty').style.display='none';
+  document.getElementById('br-strong-cards').innerHTML='';
+  document.getElementById('br-building-cards').innerHTML='';
+  document.getElementById('br-scanned').textContent='0';
+  document.getElementById('br-found').textContent='0';
+  document.getElementById('br-calls').textContent='0';
+  document.getElementById('br-s-calls').textContent='0';
+  document.getElementById('br-scan-btn').style.display='none';
+  document.getElementById('br-stop-btn').style.display='inline-block';
+  document.getElementById('br-ticker-list').textContent=SP50.map(s=>s.ticker).join(', ');
+  brSetStatus('scanning','Scanning...');
+
+  const PACE=8000;
+  let scanned=0;
+  let bullFound=0;
+
+  brLog('Bull Run scan starting — '+SP50.length+' tickers at 8s pace...');
+
+  for(let i=0;i<SP50.length;i++){
+    if(brAbort) break;
+    const {ticker,name}=SP50[i];
+    const pct=Math.round(((i+1)/SP50.length)*100);
+    const secsLeft=Math.round((SP50.length-i-1)*PACE/1000);
+    brSetProgress(pct,`Scanning ${ticker} (${i+1}/${SP50.length})`,`~${secsLeft}s left`);
+    brLog('Analyzing '+ticker+' for bull run signals...');
+
+    try{
+      const values=await brFetchBars(ticker);
+      if(!values){brLog(ticker+' — no data','warn');continue;}
+      scanned++;
+      document.getElementById('br-scanned').textContent=scanned;
+      document.getElementById('br-s-scanned').textContent=scanned;
+
+      const result=analyzeBullRun(ticker,name,values);
+      brLog(`${ticker}: ${result.score}/6 bull signals · RSI ${result.rsi||'—'} · MACD ${result.cMACD||'—'} · Vol ${result.volRatio}×`,(result.score>=5?'good':result.score>=4?'warn':''));
+
+      if(result.score>=4){
+        bullFound++;
+        brResults.push(result);
+        document.getElementById('br-found').textContent=bullFound;
+        document.getElementById('br-s-strong').textContent=brResults.filter(r=>r.score>=5).length;
+        document.getElementById('br-s-building').textContent=brResults.filter(r=>r.score===4).length;
+        brRenderCards();
+        // Push notification if enabled
+        if(pushOn&&result.score>=5){
+          sendPush(`🚀 BULL RUN — ${ticker} ${result.score}/6`,`$${result.price.toFixed(2)} · RSI ${result.rsi||'—'} · MACD ${result.cMACD>0?'+':''}${result.cMACD} · Target $${result.target2.toFixed(2)}`);
+        }
+      }
+    }catch(e){
+      if(e.message==='aborted') break;
+      if(e.message==='invalid_key'||e.message==='no_key'){brLog('API key error.','err');brAbort=true;break;}
+      if(e.message==='rate_limit'){brLog('Rate limit — pausing 15s...','warn');await sleep(15000);i--;continue;}
+      brLog(ticker+' error: '+e.message,'warn');
+    }
+    if(i<SP50.length-1&&!brAbort) await sleep(PACE);
+  }
+
+  // Scan complete
+  const elapsed=((Date.now()-scanStart)/1000/60).toFixed(1);
+  document.getElementById('br-s-time').textContent=elapsed+'m';
+  const rsiVals=brResults.filter(r=>r.rsi!=null);
+  document.getElementById('br-s-rsi').textContent=rsiVals.length?(rsiVals.reduce((a,b)=>a+b.rsi,0)/rsiVals.length).toFixed(1):'—';
+  document.getElementById('br-scan-btn').style.display='inline-block';
+  document.getElementById('br-stop-btn').style.display='none';
+  brSetProgress(100,'Complete','Done ✓');
+  setTimeout(()=>{brSetProgress(0,'','');document.getElementById('br-progress-card').style.display='none';},4000);
+
+  if(brResults.length===0&&!brAbort){
+    document.getElementById('br-no-results').style.display='block';
+    brLog('No bull run setups found. Market may be bearish or consolidating.','warn');
+  } else {
+    brLog('Scan complete. '+brResults.filter(r=>r.score>=5).length+' strong + '+brResults.filter(r=>r.score===4).length+' building bull setups found.','good');
+  }
+  document.getElementById('br-last-scan').textContent='Last scan: '+new Date().toLocaleTimeString();
+  brSetStatus('done','Complete · '+(brResults.filter(r=>r.score>=5).length)+' strong setups');
+}
+
+function brStop(){
+  brAbort=true;
+  document.getElementById('br-scan-btn').style.display='inline-block';
+  document.getElementById('br-stop-btn').style.display='none';
+  brLog('Stopped by user.','warn');
+  brSetStatus('','Stopped');
+}
+
+function brToggleAuto(){
+  brAutoOn=!brAutoOn;
+  const btn=document.getElementById('br-auto-btn');
+  const lbl=document.getElementById('br-auto-label');
+  if(brAutoOn){
+    brAutoTimer=setInterval(()=>brStartScan(),15*60*1000);
+    btn.textContent='Auto: On';btn.style.color='var(--green)';btn.style.borderColor='var(--green-border)';
+    lbl.textContent='Rescans every 15 min';lbl.style.color='var(--green)';
+    brLog('Auto bull run scan every 15 min.','good');
+  } else {
+    clearInterval(brAutoTimer);
+    btn.textContent='Auto: Off';btn.style.color='';btn.style.borderColor='';
+    lbl.textContent='';
+    brLog('Auto-scan off.');
   }
 }
 
