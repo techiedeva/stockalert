@@ -55,9 +55,16 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
 
 /* CONTROLS */
-.controls{padding:16px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.key-input{font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:280px;letter-spacing:1px;outline:none;}
-.key-input:focus{border-color:var(--accent);}
+.controls{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.key-input{font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:220px;outline:none;}
+@media(max-width:600px){
+  .key-input{width:100%;}
+  .controls{gap:6px;}
+  .header{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 14px;}
+  .tab-nav{width:100%;overflow-x:auto;}
+  .tab-btn{font-size:11px;padding:5px 10px;}
+  .container{padding:12px 10px;}
+}
 .btn{padding:8px 18px;border-radius:6px;font-size:14px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);letter-spacing:0.5px;transition:all .15s;}
 .btn:hover{background:var(--surface2);color:var(--text);}
 .btn-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600;}
@@ -191,12 +198,21 @@ tr:hover td{background:var(--surface2);}
 </div>
 
 <div class="controls">
-  <!-- API KEY: masked, password-reveal protected -->
-  <div style="display:flex;align-items:center;gap:6px;">
-    <input type="password" class="key-input" id="api-key" placeholder="Paste Twelve Data API key..." autocomplete="off"/>
-    <button class="btn" onclick="toggleKeyReveal()" id="key-reveal-btn" title="Reveal key">👁</button>
+  <!-- API KEY: text type (allows paste on mobile), visually masked via CSS -->
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    <div style="position:relative;">
+      <input type="text" class="key-input" id="api-key"
+        placeholder="Paste Twelve Data API key..."
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        style="-webkit-text-security:disc;font-family:var(--mono);"
+        onfocus="this.style['-webkit-text-security']='none'"
+        onblur="this.style['-webkit-text-security']='disc'"/>
+    </div>
+    <button class="btn" onclick="pasteKey()" id="paste-btn" title="Paste from clipboard" style="font-size:13px;">📋 Paste</button>
+    <button class="btn" onclick="toggleKeyReveal()" id="key-reveal-btn" title="Reveal/hide key">👁</button>
+    <button class="btn" onclick="saveKey()" style="font-size:13px;">Save key</button>
   </div>
-  <button class="btn btn-primary" id="scan-btn" onclick="startScan()">▶ Run scan</button>
+  <button class="btn btn-primary" id="scan-btn" onclick="startScan()">▶ Scan</button>
   <div class="divider-v"></div>
   <button class="btn" id="auto-btn" onclick="toggleAuto()">Auto: Off</button>
   <span class="auto-label" id="auto-label"></span>
@@ -204,7 +220,6 @@ tr:hover td{background:var(--surface2);}
   <button class="btn" id="push-btn" onclick="togglePush()">🔔 Push: Off</button>
   <span class="auto-label" id="push-label"></span>
   <div class="divider-v"></div>
-  <button class="btn" onclick="saveKey()">Save key</button>
   <button class="btn btn-danger" onclick="clearResults()">Clear</button>
 </div>
 
@@ -336,21 +351,21 @@ tr:hover td{background:var(--surface2);}
     </div>
 
     <!-- INPUTS ROW -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
       <div>
-        <label class="jnl-form-grid" style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">TICKER</label>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">TICKER</label>
         <input type="text" class="jnl-input" id="te-ticker" placeholder="TQQQ" style="text-transform:uppercase;width:100%;" oninput="teClearResults()"/>
       </div>
       <div>
-        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">ENTRY PRICE ($)</label>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ENTRY PRICE ($)</label>
         <input type="number" class="jnl-input" id="te-entry" placeholder="62.50" step="0.01" style="width:100%;" oninput="teRecompute()"/>
       </div>
       <div>
-        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">AMOUNT TO INVEST ($)</label>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">AMOUNT TO INVEST ($)</label>
         <input type="number" class="jnl-input" id="te-amount" placeholder="5000" min="1" style="width:100%;" oninput="teRecompute()"/>
       </div>
       <div>
-        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">ATR MULTIPLIER</label>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ATR MULTIPLIER</label>
         <select class="jnl-select" id="te-mult" style="width:100%;" onchange="teRecompute()">
           <option value="1">1× ATR (tight)</option>
           <option value="1.5" selected>1.5× ATR (standard)</option>
@@ -358,13 +373,15 @@ tr:hover td{background:var(--surface2);}
           <option value="2.5">2.5× ATR (very wide)</option>
         </select>
       </div>
-      <div style="display:flex;align-items:flex-end;">
-        <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="width:100%;font-size:12px;">Fetch ATR</button>
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">PROFIT GOAL ($) <span style="color:var(--accent);">optional</span></label>
+        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">How much $ profit you want</div>
       </div>
       <div>
-        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">PROFIT GOAL ($) <span style="color:var(--accent);">optional</span></label>
-        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:3px;">How much $ profit you want</div>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">FETCH LIVE ATR</label>
+        <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="width:100%;font-size:13px;padding:9px 0;">⚡ Fetch ATR</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pulls live volatility data</div>
       </div>
     </div>
 
@@ -753,11 +770,15 @@ let sortCol='score';
 let sortAsc=false;
 let abortScan=false;
 
-// Load saved key
+// Load saved key — restore into text input with CSS masking
 (function(){
   const k=localStorage.getItem('td_key')||'';
-  if(k) document.getElementById('api-key').value=k;
-  else document.getElementById('key-prompt').classList.remove('hidden');
+  const input=document.getElementById('api-key');
+  if(k){
+    input.value=k;
+    input.style['-webkit-text-security']='disc'; // masked by default
+    document.getElementById('key-prompt').classList.add('hidden');
+  }
   renderWatchlistChips();
 })();
 
@@ -1208,34 +1229,51 @@ function toggleIndicatorRow(id){
 }
 
 
-// ---- KEY MASKING — password protected reveal ----
+// ---- KEY MASKING — uses -webkit-text-security for masking (works on text input, allows paste) ----
 let keyRevealed=false;
 const KEY_PWD_STORAGE='sk_key_pwd';
 
+async function pasteKey(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(text&&text.trim()){
+      document.getElementById('api-key').value=text.trim();
+      localStorage.setItem('td_key',text.trim());
+      log('Key pasted and saved.','good');
+      document.getElementById('key-prompt').classList.add('hidden');
+    } else {
+      log('Clipboard is empty.','warn');
+    }
+  }catch(e){
+    // Clipboard API not available — show manual instructions
+    const input=document.getElementById('api-key');
+    input.focus();
+    input.style['-webkit-text-security']='none';
+    log('Tap and hold the key field → select Paste.','warn');
+  }
+}
+
 function toggleKeyReveal(){
   const input=document.getElementById('api-key');
+  const btn=document.getElementById('key-reveal-btn');
   if(keyRevealed){
-    // Hide again
-    input.type='password';
-    document.getElementById('key-reveal-btn').textContent='👁';
+    input.style['-webkit-text-security']='disc';
+    btn.textContent='👁';
     keyRevealed=false;
     return;
   }
   const pwd=localStorage.getItem(KEY_PWD_STORAGE);
   if(!pwd){
-    // No password set yet — prompt to set one
     const newPwd=prompt('Set a password to protect your API key (min 4 chars):');
     if(!newPwd||newPwd.length<4){alert('Password must be at least 4 characters.');return;}
     const confirm=prompt('Confirm password:');
     if(newPwd!==confirm){alert('Passwords do not match.');return;}
     localStorage.setItem(KEY_PWD_STORAGE,newPwd);
-    // Reveal immediately after setting
-    input.type='text';
-    document.getElementById('key-reveal-btn').textContent='🔒';
+    input.style['-webkit-text-security']='none';
+    btn.textContent='🔒';
     keyRevealed=true;
     log('Key password set. Key is now visible.','good');
   } else {
-    // Show password modal
     document.getElementById('key-modal').style.display='flex';
     setTimeout(()=>document.getElementById('reveal-pwd-input').focus(),100);
   }
@@ -1245,7 +1283,7 @@ function checkRevealPwd(){
   const entered=document.getElementById('reveal-pwd-input').value;
   const stored=localStorage.getItem(KEY_PWD_STORAGE);
   if(entered===stored){
-    document.getElementById('api-key').type='text';
+    document.getElementById('api-key').style['-webkit-text-security']='none';
     document.getElementById('key-reveal-btn').textContent='🔒';
     keyRevealed=true;
     closeKeyModal();
