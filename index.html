@@ -1819,7 +1819,7 @@ function teRecompute(){
   const p3str=p3?' (+$'+p3+')':'';
   const p5str=p5?' (+$'+p5+')':'';
   const sharesLine=shares>0
-    ?`$${amount.toLocaleString()} ÷ $${entry.toFixed(2)}/share = <strong>${shares} shares</strong> · Invested: <strong>$${actualInvested.toLocaleString()}</strong>`+(leftover>0?` · Leftover cash: <strong>$${leftover.toFixed(2)}</strong>`:'')+`<br>`
+    ?`$${amountInput>0?amountInput.toLocaleString():(actualInvested.toLocaleString())} → ${shares} shares × $${entry.toFixed(2)} = <strong>$${actualInvested.toLocaleString()}</strong>`+(leftover>0?` · Leftover cash: <strong>$${leftover.toFixed(2)}</strong>`:'')+`<br>`
     :'';
   const riskLine=totalRisk
     ?`Total risk if stop hit: ${shares} × $${riskPerShare.toFixed(2)} = <strong style="color:var(--red);">$${totalRisk.toFixed(2)}</strong><br>`
