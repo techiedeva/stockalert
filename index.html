@@ -358,11 +358,17 @@ tr:hover td{background:var(--surface2);}
       </div>
       <div>
         <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ENTRY PRICE ($)</label>
-        <input type="number" class="jnl-input" id="te-entry" placeholder="62.50" step="0.01" style="width:100%;" oninput="teRecompute()"/>
+        <input type="number" class="jnl-input" id="te-entry" placeholder="62.50" step="0.01" style="width:100%;" oninput="teOnEntryChange()"/>
       </div>
       <div>
         <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">AMOUNT TO INVEST ($)</label>
-        <input type="number" class="jnl-input" id="te-amount" placeholder="5000" min="1" style="width:100%;" oninput="teRecompute()"/>
+        <input type="number" class="jnl-input" id="te-amount" placeholder="5000" min="1" style="width:100%;border:1px solid var(--border2);" oninput="teOnAmountChange()"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">→ auto-calculates shares</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">NUMBER OF SHARES</label>
+        <input type="number" class="jnl-input" id="te-shares-input" placeholder="e.g. 80" min="1" style="width:100%;" oninput="teOnSharesChange()"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">→ auto-calculates amount</div>
       </div>
       <div>
         <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ATR MULTIPLIER</label>
@@ -378,12 +384,9 @@ tr:hover td{background:var(--surface2);}
         <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">How much $ profit you want</div>
       </div>
-      <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">FETCH LIVE ATR</label>
-        <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="width:100%;font-size:13px;padding:9px 0;">⚡ Fetch ATR</button>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Pulls live volatility data</div>
-      </div>
     </div>
+    <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="font-size:13px;padding:9px 24px;">⚡ Fetch ATR &amp; Calculate</button>
+    <span style="font-size:12px;color:var(--text3);margin-left:10px;">Pulls live volatility · results update instantly when you change any field</span>
 
     <div id="te-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:10px;min-height:16px;"></div>
 
@@ -1655,12 +1658,59 @@ function teSetStatus(msg,cls){
   el.style.color=cls==='good'?'var(--green)':cls==='warn'?'var(--amber)':cls==='err'?'var(--red)':'var(--text3)';
 }
 
+// ---- RISK & PROFIT PLANNER — mutual amount/shares calculation ----
+let _teLastEdited='amount'; // track which field user last touched
+
+function teOnEntryChange(){
+  // Entry changed — recalculate whichever of amount/shares was last set
+  const entry=parseFloat(document.getElementById('te-entry').value)||0;
+  if(!entry) return;
+  if(_teLastEdited==='shares'){
+    const shares=parseFloat(document.getElementById('te-shares-input').value)||0;
+    if(shares>0) document.getElementById('te-amount').value=(shares*entry).toFixed(2);
+  } else {
+    const amount=parseFloat(document.getElementById('te-amount').value)||0;
+    if(amount>0){
+      const shares=Math.floor(amount/entry);
+      document.getElementById('te-shares-input').value=shares||'';
+    }
+  }
+  teRecompute();
+}
+
+function teOnAmountChange(){
+  _teLastEdited='amount';
+  const entry=parseFloat(document.getElementById('te-entry').value)||0;
+  const amount=parseFloat(document.getElementById('te-amount').value)||0;
+  if(entry>0&&amount>0){
+    const shares=Math.floor(amount/entry);
+    document.getElementById('te-shares-input').value=shares||'';
+  } else if(!amount){
+    document.getElementById('te-shares-input').value='';
+  }
+  teRecompute();
+}
+
+function teOnSharesChange(){
+  _teLastEdited='shares';
+  const entry=parseFloat(document.getElementById('te-entry').value)||0;
+  const shares=parseFloat(document.getElementById('te-shares-input').value)||0;
+  if(entry>0&&shares>0){
+    document.getElementById('te-amount').value=(shares*entry).toFixed(2);
+  } else if(!shares){
+    document.getElementById('te-amount').value='';
+  }
+  teRecompute();
+}
+
 function teClearResults(){
-  _teATR=null;_teTicker='';_teResult=null;
+  _teATR=null;_teTicker='';_teResult=null;_teLastEdited='amount';
   document.getElementById('te-results').style.display='none';
   document.getElementById('te-status').textContent='';
   document.getElementById('te-custom-target').value='';
   document.getElementById('te-custom-card').style.display='none';
+  document.getElementById('te-shares-input').value='';
+  document.getElementById('te-amount').value='';
 }
 
 async function teFetch(){
@@ -1723,14 +1773,15 @@ async function teFetch(){
 function teRecompute(){
   if(!_teATR) return;
   const entry=parseFloat(document.getElementById('te-entry').value);
-  const amount=parseFloat(document.getElementById('te-amount').value)||0;
+  const sharesInput=parseFloat(document.getElementById('te-shares-input').value)||0;
+  const amountInput=parseFloat(document.getElementById('te-amount').value)||0;
   const mult=parseFloat(document.getElementById('te-mult').value)||1.5;
   if(!entry||entry<=0) return;
 
-  // Derive shares from investment amount
-  const shares=amount>0?Math.floor(amount/entry):0;
+  // Resolve shares — prefer shares field, fall back to amount÷entry
+  const shares=sharesInput>0?sharesInput:(amountInput>0?Math.floor(amountInput/entry):0);
   const actualInvested=shares>0?parseFloat((shares*entry).toFixed(2)):0;
-  const leftover=amount>0?parseFloat((amount-actualInvested).toFixed(2)):0;
+  const leftover=amountInput>0&&sharesInput===0?parseFloat((amountInput-actualInvested).toFixed(2)):0;
 
   const stopDist=_teATR*mult;
   const stop=parseFloat((entry-stopDist).toFixed(2));
@@ -1827,17 +1878,15 @@ function teRecompute(){
 function teLogTrade(){
   if(!_teResult){ teSetStatus('Run Fetch ATR first.','err'); return; }
   const r=_teResult;
-  // Prefill journal log form
   document.getElementById('jj-ticker').value=r.ticker;
   document.getElementById('jj-dir').value='Long';
   document.getElementById('jj-entry').value=r.entry.toFixed(2);
   document.getElementById('jj-qty').value=r.qty||'';
   document.getElementById('jj-stop').value=r.stop.toFixed(2);
   document.getElementById('jj-target').value=r.target.toFixed(2);
-  document.getElementById('jj-notes').value='ATR $'+r.atr+' · stop $'+r.stop.toFixed(2)+' · 2:1 target $'+r.target.toFixed(2);
-  // Scroll to log form
+  document.getElementById('jj-notes').value='ATR $'+r.atr+' · stop $'+r.stop.toFixed(2)+' · target $'+r.target.toFixed(2)+(r.invested?' · invested $'+r.invested.toLocaleString():'');
   document.getElementById('jj-ticker').scrollIntoView({behavior:'smooth',block:'center'});
-  document.getElementById('jj-form-status').textContent='Prefilled from Trade Calculator. Enter qty and click Add trade.';
+  document.getElementById('jj-form-status').textContent='Prefilled from Risk & Profit Planner. Click Add trade to save.';
   document.getElementById('jj-form-status').style.color='var(--amber)';
 }
 
