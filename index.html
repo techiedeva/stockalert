@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>SK Trading - Reversal Scanner</title>
+<title>SK Alpha — Trading Intelligence</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -148,7 +148,7 @@ tr:hover td{background:var(--surface2);}
 
 /* TABS */
 .tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:3px;}
-.tab-btn{padding:6px 16px;border-radius:6px;font-size:12px;font-family:var(--mono);cursor:pointer;color:var(--text3);border:none;background:transparent;letter-spacing:0.5px;transition:all .15s;}
+.tab-btn{padding:6px 14px;border-radius:6px;font-size:13px;font-family:var(--mono);cursor:pointer;color:var(--text3);border:none;background:transparent;letter-spacing:0.5px;transition:all .15s;text-align:center;line-height:1.3;}
 .tab-btn:hover{color:var(--text);}
 .tab-btn.active{background:var(--surface3);color:var(--accent);font-weight:600;}
 .tab-page{display:none;}
@@ -174,15 +174,15 @@ tr:hover td{background:var(--surface2);}
 <div class="header">
   <div class="header-left">
     <div>
-      <div class="logo">SK Trading — Reversal Scanner</div>
-      <div class="logo-sub">TQQQ · BMNR · QBTS · 15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span></div>
+      <div class="logo">SK Alpha — Trading Intelligence</div>
+      <div class="logo-sub" id="header-sub">15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span></div>
     </div>
   </div>
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('scanner',this)">Reversal Scanner</button>
-    <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn">Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span></button>
-    <button class="tab-btn" onclick="switchTab('exchange',this)">Exchange Scanner</button>
-    <button class="tab-btn" onclick="switchTab('bullrun',this)">🚀 Bull Run</button>
+    <button class="tab-btn" onclick="switchTab('bullrun',this)" title="Find stocks showing early bull run characteristics — momentum building, trend confirmed">🚀 Bull Run <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Rising momentum</span></button>
+    <button class="tab-btn active" onclick="switchTab('scanner',this)" title="Find falling stocks ready to reverse and bounce back up">📉 Reversal <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Catch the bounce</span></button>
+    <button class="tab-btn" onclick="switchTab('exchange',this)" title="Scan NASDAQ+NYSE stocks under $50 for launch alerts">🔍 Exchange <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Discover alerts</span></button>
+    <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <div class="status-pill"><div class="status-dot" id="status-dot"></div><span id="status-text">Ready</span></div>
@@ -329,7 +329,8 @@ tr:hover td{background:var(--surface2);}
   <!-- ===== TRADE ENTRY CALCULATOR ===== -->
   <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:20px;margin-top:14px;margin-bottom:20px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-      <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);">⚡ Trade Entry Calculator</div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);">📊 Risk &amp; Profit Planner</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:3px;">Enter ticker + entry price + investment → get stop-loss, sell targets, profit scenarios</div>
       <div style="flex:1;height:1px;background:var(--green-border);"></div>
       <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">ATR-based · Live data</div>
     </div>
@@ -361,8 +362,9 @@ tr:hover td{background:var(--surface2);}
         <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="width:100%;font-size:12px;">Fetch ATR</button>
       </div>
       <div>
-        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">CUSTOM TARGET ($) <span style="color:var(--accent);">optional</span></label>
-        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 68.00" step="0.01" style="width:100%;" oninput="teRecompute()"/>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:4px;">PROFIT GOAL ($) <span style="color:var(--accent);">optional</span></label>
+        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">How much $ profit you want</div>
       </div>
     </div>
 
@@ -419,15 +421,15 @@ tr:hover td{background:var(--surface2);}
           <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:4px;" id="te-t5-profit">—</div>
         </div>
 
-        <!-- CUSTOM TARGET -->
         <div id="te-custom-card" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.4);border-radius:8px;padding:14px;position:relative;">
-          <div style="font-size:10px;font-family:var(--mono);letter-spacing:1px;color:var(--blue);margin-bottom:6px;">CUSTOM TARGET ✏️</div>
-          <div style="font-size:24px;font-weight:600;font-family:var(--mono);color:var(--blue);" id="te-tc">—</div>
-          <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:4px;" id="te-tc-rr">—</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px;" id="te-tc-profit">—</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:6px;padding-top:6px;border-top:1px solid rgba(59,130,246,0.2);">
-            <div style="color:var(--text2);margin-bottom:2px;">Stop to achieve this R:R:</div>
-            <div style="font-size:13px;font-weight:600;color:var(--red);" id="te-tc-stop-rr2">—</div>
+          <div style="font-size:10px;font-family:var(--mono);letter-spacing:1px;color:var(--blue);margin-bottom:6px;">PROFIT GOAL 🎯</div>
+          <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">To make <strong style="color:var(--blue);" id="te-goal-amount">—</strong> profit:</div>
+          <div style="font-size:24px;font-weight:600;font-family:var(--mono);color:var(--blue);" id="te-tc">Sell at —</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--mono);margin-top:4px;" id="te-tc-rr">—</div>
+          <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-top:2px;" id="te-tc-profit">—</div>
+          <div style="font-size:12px;font-family:var(--mono);margin-top:8px;padding-top:8px;border-top:1px solid rgba(59,130,246,0.2);">
+            <div style="color:var(--text3);margin-bottom:4px;">Stop-loss to maintain proper R:R at this sell price:</div>
+            <div style="font-size:13px;font-weight:600;" id="te-tc-stop-rr2">—</div>
           </div>
         </div>
 
@@ -722,6 +724,9 @@ const DEFAULT_WATCHLIST=[
   {ticker:'TSLA', name:'Tesla Inc.'},
   {ticker:'QQQ',  name:'Invesco QQQ Trust'},
   {ticker:'SPY',  name:'SPDR S&P 500 ETF'},
+  {ticker:'AAPL', name:'Apple Inc.'},
+  {ticker:'NVDA', name:'NVIDIA Corp.'},
+  {ticker:'AMZN', name:'Amazon.com Inc.'},
 ];
 
 function loadWatchlist(){
@@ -819,9 +824,9 @@ function resetWatchlist(){
 
 function updateEmptyState(){
   const el=document.getElementById('empty-state');
-  if(el) el.querySelector('div:last-child').textContent='Run a scan to find reversal setups across '+SP50.map(s=>s.ticker).join(', ');
-  const hdr=document.querySelector('.logo-sub');
-  if(hdr) hdr.innerHTML=SP50.map(s=>s.ticker).join(' · ')+' · 15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span>';
+  if(el) el.querySelector('div:last-child').textContent='Run a scan to find reversal setups across your watchlist ('+SP50.length+' tickers)';
+  const hdr=document.getElementById('header-sub');
+  if(hdr) hdr.innerHTML=SP50.map(s=>s.ticker).join(' · ')+' · 15-min bars · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span>';
 }
 
 function log(msg,cls=''){
@@ -1740,39 +1745,44 @@ function teRecompute(){
     `5:1 → <strong style="color:var(--green);">$${t5.toFixed(2)}</strong>${p5str}<br>`+
     `<span style="color:var(--red);">Place stop-loss order at $${stop.toFixed(2)} with your broker immediately on entry.</span>`;
 
-  // Custom target calculation
-  const customTarget=parseFloat(document.getElementById('te-custom-target').value)||0;
+  // Profit Goal calculation — user enters desired $ profit → calculate sell price
+  const profitGoal=parseFloat(document.getElementById('te-custom-target').value)||0;
   const customCard=document.getElementById('te-custom-card');
-  if(customTarget>entry){
+  if(profitGoal>0&&shares>0){
     customCard.style.display='block';
-    const customGain=parseFloat((customTarget-entry).toFixed(4));
-    // Implied R:R using current ATR stop
-    const impliedRR=parseFloat((customGain/riskPerShare).toFixed(2));
-    // Profit at custom target
-    const customProfit=shares>0?parseFloat((customGain*shares).toFixed(2)):null;
-    // Back-calculated stop for 2:1 R:R at this target
-    const stopFor2RR=parseFloat((entry-customGain/2).toFixed(2));
-    // Back-calculated stop for 3:1 R:R at this target
-    const stopFor3RR=parseFloat((entry-customGain/3).toFixed(2));
+    // Sell price needed to achieve profit goal
+    const profitPerShare=parseFloat((profitGoal/shares).toFixed(4));
+    const sellPrice=parseFloat((entry+profitPerShare).toFixed(2));
+    // R:R with current ATR stop
+    const impliedRR=parseFloat((profitPerShare/riskPerShare).toFixed(2));
+    // Back-calc stops for 2:1 and 3:1 at this sell price
+    const gainNeeded=sellPrice-entry;
+    const stopFor2RR=parseFloat((entry-gainNeeded/2).toFixed(2));
+    const stopFor3RR=parseFloat((entry-gainNeeded/3).toFixed(2));
+    // Quality assessment
+    const rrColor=impliedRR>=2?'var(--green)':impliedRR>=1?'var(--amber)':'var(--red)';
+    const rrLabel=impliedRR>=2?'✓ Good R:R':impliedRR>=1?'⚠ Marginal R:R — consider sizing down':'✗ Poor R:R — risk outweighs reward';
 
-    document.getElementById('te-tc').textContent='$'+customTarget.toFixed(2);
-    document.getElementById('te-tc-rr').textContent='R:R = '+impliedRR+':1 with current ATR stop';
-    document.getElementById('te-tc-profit').textContent=customProfit?'+$'+customProfit+' profit ('+shares+' shares)':'+$'+customGain.toFixed(2)+'/share';
+    document.getElementById('te-goal-amount').textContent='$'+profitGoal.toFixed(0);
+    document.getElementById('te-tc').textContent='Sell at $'+sellPrice.toFixed(2);
+    document.getElementById('te-tc-rr').innerHTML=`R:R = <strong style="color:${rrColor};">${impliedRR}:1</strong> &nbsp;·&nbsp; <span style="color:${rrColor};">${rrLabel}</span>`;
+    document.getElementById('te-tc-profit').textContent=
+      `${shares} shares × +$${profitPerShare.toFixed(2)}/share = +$${profitGoal.toFixed(2)} profit`;
     document.getElementById('te-tc-stop-rr2').innerHTML=
-      `For 2:1 → stop at <span style="color:var(--red);">$${stopFor2RR.toFixed(2)}</span> &nbsp;·&nbsp; `+
-      `For 3:1 → stop at <span style="color:var(--red);">$${stopFor3RR.toFixed(2)}</span>`;
-  } else if(customTarget>0&&customTarget<=entry){
+      `For 2:1 R:R → stop at <span style="color:var(--red);">$${stopFor2RR.toFixed(2)}</span>`+
+      ` &nbsp;·&nbsp; For 3:1 R:R → stop at <span style="color:var(--red);">$${stopFor3RR.toFixed(2)}</span>`;
+  } else if(profitGoal>0&&shares===0){
     customCard.style.display='block';
-    document.getElementById('te-tc').textContent='$'+customTarget.toFixed(2);
-    document.getElementById('te-tc-rr').textContent='⚠ Target must be above entry price';
-    document.getElementById('te-tc-rr').style.color='var(--red)';
+    document.getElementById('te-goal-amount').textContent='$'+profitGoal.toFixed(0);
+    document.getElementById('te-tc').textContent='Enter shares';
+    document.getElementById('te-tc-rr').textContent='Need investment amount to calculate';
     document.getElementById('te-tc-profit').textContent='';
     document.getElementById('te-tc-stop-rr2').textContent='';
   } else {
     customCard.style.display='none';
   }
 
-  _teResult={ticker:_teTicker,entry,stop,target:customTarget>entry?customTarget:t2,qty:shares,riskPerShare,atr:_teATR.toFixed(3),invested:actualInvested};
+  _teResult={ticker:_teTicker,entry,stop,target:profitGoal>0&&shares>0?parseFloat((entry+profitGoal/shares).toFixed(2)):t2,qty:shares,riskPerShare,atr:_teATR.toFixed(3),invested:actualInvested};
   document.getElementById('te-results').style.display='block';
 }
 
@@ -1799,17 +1809,17 @@ function teCopy(){
   const t2=parseFloat((r.entry+r.riskPerShare*2).toFixed(2));
   const t3=parseFloat((r.entry+r.riskPerShare*3).toFixed(2));
   const t5=parseFloat((r.entry+r.riskPerShare*5).toFixed(2));
-  const customTarget=parseFloat(document.getElementById('te-custom-target').value)||0;
-  const customLine=customTarget>r.entry?`Custom target: $${customTarget.toFixed(2)}\n`:'';
+  const profitGoal=parseFloat(document.getElementById('te-custom-target').value)||0;
+  const goalLine=profitGoal>0&&r.qty>0?`Profit goal: $${profitGoal} → sell at $${(r.entry+profitGoal/r.qty).toFixed(2)}\n`:'';
   const text=
-    `${r.ticker} Trade Levels\n`+
+    `${r.ticker} Trade Levels — SK Alpha\n`+
     `Entry:    $${r.entry.toFixed(2)}\n`+
     `Shares:   ${r.qty} (invested $${r.invested?r.invested.toLocaleString():'—'})\n`+
     `Stop:     $${r.stop.toFixed(2)}\n`+
     `Target 2:1: $${t2.toFixed(2)}\n`+
     `Target 3:1: $${t3.toFixed(2)}\n`+
     `Target 5:1: $${t5.toFixed(2)}\n`+
-    customLine+
+    goalLine+
     `ATR: $${r.atr}`;
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.getElementById('te-copy-btn');
