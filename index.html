@@ -1345,12 +1345,29 @@ function togglePush(){
   }
 }
 
+// ---- SERVICE WORKER registration (required for Android Chrome push) ----
+let swReg=null;
+
+async function registerSW(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{
+    swReg=await navigator.serviceWorker.register('./sw.js');
+    log('Service worker registered.','good');
+    return swReg;
+  }catch(e){
+    log('SW registration failed: '+e.message+' — desktop push still works.','warn');
+    return null;
+  }
+}
+
+// Register SW on page load
+registerSW();
+
 async function requestPushPermission(){
   const st=document.getElementById('push-status');
   if(!('Notification' in window)){
-    st.textContent='Not supported in this browser.';st.style.color='var(--red)';return;
+    st.textContent='Notifications not supported in this browser.';st.style.color='var(--red)';return;
   }
-  // Already granted — just enable
   if(Notification.permission==='granted'){
     pushOn=true;updatePushBtn();
     st.textContent='✓ Already enabled! Alerts will fire automatically.';st.style.color='var(--green)';
@@ -1367,33 +1384,50 @@ async function requestPushPermission(){
     document.getElementById('push-request-btn').textContent='✓ Enabled';
     document.getElementById('push-request-btn').style.opacity='0.5';
   } else {
-    st.textContent='Permission denied. Click the lock icon in your browser address bar to allow.';
+    st.textContent='Permission denied. Tap the lock/info icon in address bar → Notifications → Allow.';
     st.style.color='var(--red)';
     log('Push notification permission denied.','warn');
   }
 }
 
-function sendPush(title,body){
-  // Use Notification.permission as source of truth — not just pushOn flag
+async function sendPush(title,body){
   if(Notification.permission!=='granted') return;
+  const opts={
+    body,
+    tag:'sk-alpha-'+Date.now(),
+    icon:'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f4c8.png',
+    badge:'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f4c8.png',
+    requireInteraction:false,
+    vibrate:[200,100,200]
+  };
   try{
-    new Notification('📈 '+title,{body,tag:'sk-reversal-'+Date.now(),requireInteraction:true});
-    log('🔔 Push: '+title,'good');
-  }catch(e){log('Push failed: '+e.message,'warn');}
+    // Android Chrome requires Service Worker — desktop works with new Notification()
+    const sw=swReg||await navigator.serviceWorker.ready.catch(()=>null);
+    if(sw&&sw.showNotification){
+      await sw.showNotification('📈 '+title,opts);
+      log('🔔 Push (SW): '+title,'good');
+    } else {
+      // Desktop fallback
+      new Notification('📈 '+title,opts);
+      log('🔔 Push (direct): '+title,'good');
+    }
+  }catch(e){
+    log('Push failed: '+e.message,'warn');
+    // Last resort fallback
+    try{ new Notification('📈 '+title,{body}); }catch(e2){}
+  }
 }
 
-function testPush(){
+async function testPush(){
   const st=document.getElementById('push-status');
-  // Only check actual browser permission — not pushOn flag
   if(Notification.permission!=='granted'){
     st.textContent='Click "Enable notifications" first, then try again.';
     st.style.color='var(--red)';
     return;
   }
-  // Auto-sync pushOn
   pushOn=true;updatePushBtn();
-  sendPush('Test — SK Trading Reversal Scanner','Push notifications are working! Launch alerts will appear like this.');
-  st.textContent='✓ Test notification sent! Check your screen/taskbar.';
+  await sendPush('Test — SK Alpha','Push notifications working on this device! Launch alerts will appear like this.');
+  st.textContent='✓ Test notification sent! Check your screen/notification bar.';
   st.style.color='var(--green)';
 }
 
