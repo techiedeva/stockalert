@@ -639,7 +639,7 @@ tr:hover td{background:var(--surface2);}
         <div><span style="color:var(--green);">●</span> Volume expanding <span style="color:var(--text3);">— last 5 bars > prior 5 bars avg</span></div>
         <div><span style="color:var(--green);">●</span> BB squeeze <span style="color:var(--text3);">— bands narrowing, breakout building</span></div>
       </div>
-      <div style="margin-top:8px;font-size:12px;color:var(--amber);font-family:var(--mono);">⚠ MA200 on 15-min bars = ~3 days of price history, not the traditional 200-day MA</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--amber);font-family:var(--mono);">⚠ MA200 on 15-min bars = ~50 hours of price history (not the traditional 200-day MA)</div>
     </div>
 
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -880,7 +880,7 @@ async function tdGet(ticker){
   const key=getKey();
   if(!key) throw new Error('no_key');
   for(const exchange of EXCHANGES){
-    const params={symbol:ticker,interval:'15min',outputsize:'100'};
+    const params={symbol:ticker,interval:'15min',outputsize:'200'};
     if(exchange) params.exchange=exchange;
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     const url=`${TD_BASE}/time_series?${qs}`;
@@ -895,7 +895,7 @@ async function tdGet(ticker){
         if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
         continue;
       }
-      if(data.values&&data.values.length>=20) return data.values;
+      if(data.values&&data.values.length>=50) return data.values;
     }catch(e){
       if(e.message==='invalid_key'||e.message==='no_key'||e.message==='aborted'||e.message==='rate_limit') throw e;
     }
@@ -1989,7 +1989,7 @@ async function exQuote(ticker,exchange){
 async function exGetBars(ticker,exchange){
   if(exAbort) throw new Error('aborted');
   const key=getKey();
-  const qs=new URLSearchParams({symbol:ticker,interval:'15min',outputsize:'100',exchange,apikey:key}).toString();
+  const qs=new URLSearchParams({symbol:ticker,interval:'15min',outputsize:'200',exchange,apikey:key}).toString();
   const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
   const data=await res.json();
   exApiCalls++;
@@ -2228,7 +2228,7 @@ function analyzeBullRun(ticker, name, values){
   const rsiArr=calcRSI(closes,14);
   const cRSI=lastVal(rsiArr);
   const ma50arr=calcEMA(closes,50);
-  const ma200arr=calcEMA(closes,200);
+  const ma200arr=calcEMA(closes,200); // Now works — we fetch 200 bars
   const cMA50=lastVal(ma50arr);
   const cMA200=lastVal(ma200arr);
   const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
@@ -2275,7 +2275,7 @@ function analyzeBullRun(ticker, name, values){
   const s2=cMACD!=null&&cMACD>0;
   // S3: Price above MA50 (short-term trend bullish)
   const s3=cMA50!=null&&cp>cMA50;
-  // S4: Price above MA200 (medium-term trend bullish on 15-min scale)
+  // S4: Price above MA200 (medium-term trend — now valid with 200-bar fetch)
   const s4=cMA200!=null&&cp>cMA200;
   // S5: Volume expanding (last 5 bars > prior 5 bars)
   const s5=volExpanding;
@@ -2303,33 +2303,42 @@ async function brFetchBars(ticker){
   const key=getKey();
   if(!key) throw new Error('no_key');
   for(const exchange of EXCHANGES){
-    const params={symbol:ticker,interval:'15min',outputsize:'100'};
+    const params={symbol:ticker,interval:'15min',outputsize:'200'};
     if(exchange) params.exchange=exchange;
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
       const data=await res.json();
       brApiCalls++;
       document.getElementById('br-calls').textContent=brApiCalls;
       document.getElementById('br-s-calls').textContent=brApiCalls;
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
+        brLog(ticker+' API msg: '+(data.message||'unknown'),'warn');
         if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
         if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
-        continue;
+        continue; // try next exchange
       }
-      if(data.values&&data.values.length>=50) return data.values;
+      // Threshold: need at least 100 bars for reliable MA200 calculation
+      if(data.values&&data.values.length>=100){
+        brLog(ticker+' fetched '+data.values.length+' bars (exchange: '+(exchange||'auto')+')');
+        return data.values;
+      }
+      brLog(ticker+' only '+(data.values?data.values.length:0)+' bars from exchange '+(exchange||'auto')+', trying next...','warn');
     }catch(e){
       if(['invalid_key','no_key','aborted','rate_limit'].includes(e.message)) throw e;
+      brLog(ticker+' fetch error ('+( exchange||'auto')+'): '+e.message,'warn');
     }
   }
+  brLog(ticker+' — no usable data from any exchange','warn');
   return null;
 }
 
 function brRenderCards(){
   const strong=brResults.filter(r=>r.score>=5).sort((a,b)=>b.score-a.score||b.rsi-a.rsi);
   const building=brResults.filter(r=>r.score===4).sort((a,b)=>b.rsi-a.rsi);
-  const sigLabels=['RSI 50-65','MACD>0','Price>MA50','Price>MA200','Vol expanding','BB squeeze'];
+  const sigLabels=['RSI 50-65','MACD>0','Price>MA50','Price<>MA200','Vol expanding','BB squeeze'];
 
   function makeCard(r){
     const chgClass=r.chgPct>=0?'pos':'neg';
@@ -2378,7 +2387,7 @@ function brRenderCards(){
   }
 
   // Full table
-  const sigLbl=['RSI 50-65','MACD>0','>MA50','>MA200','Vol↑','BB sq'];
+  const sigLbl=['RSI 50-65','MACD>0','>MA50','<>MA200','Vol↑','BB sq'];
   if(brResults.length){
     document.getElementById('br-results-section').style.display='block';
     document.getElementById('br-results-body').innerHTML=brResults
@@ -2392,7 +2401,7 @@ function brRenderCards(){
           {label:'RSI',val:r.rsi!=null?r.rsi.toFixed(1):'—',ok:r.signals[0],thr:'50-65'},
           {label:'MACD',val:r.cMACD!=null?(r.cMACD>0?'+'+r.cMACD:r.cMACD):'—',ok:r.signals[1],thr:'>0'},
           {label:'>MA50',val:r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'%':'—',ok:r.signals[2],thr:'above'},
-          {label:'>MA200',val:r.signals[3]?'✓ Yes':'✗ No',ok:r.signals[3],thr:'above'},
+          {label:'<>MA200',val:r.signals[3]?'✓ Yes':'✗ No',ok:r.signals[3],thr:'above'},
           {label:'Vol',val:r.volRatio+'×',ok:r.signals[4],thr:'expanding'},
           {label:'BB',val:r.bbSqueeze?'Squeeze':'Normal',ok:r.signals[5],thr:'squeeze'},
         ].map(i=>`<span style="margin-right:12px;font-family:var(--mono);font-size:12px;">
@@ -2437,7 +2446,7 @@ function brBuildIndicatorPanel(r){
     {name:'RSI (14)',   val:r.rsi!=null?r.rsi.toFixed(1)+'  (50–65 zone)':'—', on:r.signals[0]},
     {name:'MACD',       val:r.cMACD!=null?(r.cMACD>0?'+':'')+r.cMACD+' (above zero)':'—', on:r.signals[1]},
     {name:'vs MA50',    val:r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'% above MA50':'—', on:r.signals[2]},
-    {name:'vs MA200',   val:r.signals[3]?'Above MA200 (3-day on 15min)':'Below MA200', on:r.signals[3]},
+    {name:'vs MA200',   val:r.signals[3]?'Above MA200 (medium-term on 15-min)':'Below MA200', on:r.signals[3]},
     {name:'Volume',     val:r.volRatio+'× prior 5 bars '+(r.signals[4]?'✓ expanding':'✗ contracting'), on:r.signals[4]},
     {name:'BB squeeze', val:r.bbSqueeze?'✓ Bands narrowing — breakout building':'✗ Normal bandwidth', on:r.signals[5]},
   ];
