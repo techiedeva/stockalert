@@ -115,7 +115,12 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .sig-dot.on{background:var(--green);}
 .sig-dot.off{background:var(--border2);}
 .sig-dot.partial{background:var(--amber);}
-.score-badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+:root{--yellow:#ffe047;--yellow-bg:rgba(255,224,71,0.12);--yellow-border:rgba(255,224,71,0.4);}
+.score-badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;}
+.score-badge.s6{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border);}
+.score-badge.s5{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);}
+.score-badge.s4{background:var(--surface2);color:var(--text);border:1px solid var(--border2);}
+.score-badge.s3{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}
 
 /* RESULTS TABLE */
 .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
@@ -154,10 +159,10 @@ tr:hover td{background:var(--surface2);}
 .key-prompt.hidden{display:none;}
 
 /* TABS */
-.tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:3px;}
-.tab-btn{padding:6px 14px;border-radius:6px;font-size:13px;font-family:var(--mono);cursor:pointer;color:var(--text3);border:none;background:transparent;letter-spacing:0.5px;transition:all .15s;text-align:center;line-height:1.3;}
-.tab-btn:hover{color:var(--text);}
-.tab-btn.active{background:var(--surface3);color:var(--accent);font-weight:600;}
+.tab-nav{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:4px;}
+.tab-btn{padding:8px 20px;border-radius:6px;font-size:13px;font-family:var(--mono);cursor:pointer;color:var(--text3);border:none;background:transparent;letter-spacing:0.5px;transition:all .15s;text-align:center;line-height:1.3;white-space:nowrap;}
+.tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.tab-btn.active{background:var(--surface3);color:var(--accent);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.3);}
 .tab-page{display:none;}
 .tab-page.active{display:block;}
 
@@ -182,7 +187,8 @@ tr:hover td{background:var(--surface2);}
   <div class="header-left">
     <div>
       <div class="logo">SK Alpha — Trading Intelligence</div>
-      <div class="logo-sub" id="header-sub">15-min bars · Long setups only · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span></div>
+      <div class="logo-sub" id="header-sub">15-min bars · Long setups only</div>
+      <div style="font-size:12px;color:var(--amber);font-family:var(--mono);margin-top:2px;">⚠ Market hours only · No after-hours data</div>
     </div>
   </div>
   <div class="tab-nav">
@@ -197,9 +203,23 @@ tr:hover td{background:var(--surface2);}
   </div>
 </div>
 
-<div class="controls">
-  <!-- API KEY: text type (allows paste on mobile), visually masked via CSS -->
-  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+<!-- SLIM ACTION BAR — always visible -->
+<div class="controls" id="action-bar">
+  <button class="btn btn-primary" id="scan-btn" onclick="startScan()" style="display:none;">▶ Scan</button>
+  <button class="btn" id="auto-btn" onclick="toggleAuto()" style="display:none;">Auto: Off</button>
+  <span class="auto-label" id="auto-label" style="display:none;"></span>
+  <button class="btn btn-danger" onclick="clearResults()" style="display:none;" id="clear-btn">Clear</button>
+  <div style="flex:1;"></div>
+  <button class="btn" id="push-btn" onclick="togglePush()">🔔 Push: Off</button>
+  <span class="auto-label" id="push-label"></span>
+  <div class="divider-v"></div>
+  <button class="btn" onclick="toggleConfig()" id="config-toggle-btn" style="font-size:13px;">⚙ Config ▼</button>
+</div>
+
+<!-- COLLAPSIBLE CONFIG PANEL -->
+<div id="config-panel" style="display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;">
+  <div style="max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div style="font-size:12px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-right:4px;">API Key</div>
     <div style="position:relative;">
       <input type="text" class="key-input" id="api-key"
         placeholder="Paste Twelve Data API key..."
@@ -211,16 +231,14 @@ tr:hover td{background:var(--surface2);}
     <button class="btn" onclick="pasteKey()" id="paste-btn" title="Paste from clipboard" style="font-size:13px;">📋 Paste</button>
     <button class="btn" onclick="toggleKeyReveal()" id="key-reveal-btn" title="Reveal/hide key">👁</button>
     <button class="btn" onclick="saveKey()" style="font-size:13px;">Save key</button>
+    <div class="divider-v"></div>
+    <div style="font-size:12px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Push</div>
+    <div id="push-card-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);"></div>
+    <span id="push-card-status" style="font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text3);">OFF</span>
+    <button class="btn" onclick="requestPushPermission()" id="push-request-btn" style="font-size:13px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
+    <button class="btn" onclick="testPush()" style="font-size:13px;">Send test</button>
+    <span id="push-status" style="font-size:13px;color:var(--text3);font-family:var(--mono);"></span>
   </div>
-  <button class="btn btn-primary" id="scan-btn" onclick="startScan()">▶ Scan</button>
-  <div class="divider-v"></div>
-  <button class="btn" id="auto-btn" onclick="toggleAuto()">Auto: Off</button>
-  <span class="auto-label" id="auto-label"></span>
-  <div class="divider-v"></div>
-  <button class="btn" id="push-btn" onclick="togglePush()">🔔 Push: Off</button>
-  <span class="auto-label" id="push-label"></span>
-  <div class="divider-v"></div>
-  <button class="btn btn-danger" onclick="clearResults()">Clear</button>
 </div>
 
 <!-- PASSWORD MODAL for key reveal -->
@@ -239,19 +257,6 @@ tr:hover td{background:var(--surface2);}
 </div>
 
 <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
-
-<!-- PUSH NOTIFICATION CONFIG CARD — outside tabs so always accessible -->
-<div id="push-config-card" style="display:none;background:var(--surface);border-bottom:2px solid var(--blue);padding:14px 24px;">
-  <div style="max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-    <div style="font-family:var(--mono);font-size:13px;color:var(--blue);font-weight:600;">🔔 Push Notifications</div>
-    <div style="font-size:13px;color:var(--text2);">Alerts pop up on your screen even when tab is minimized. Works on Chrome, Edge, Firefox, Safari (iOS 16.4+).</div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
-      <button class="btn" onclick="requestPushPermission()" id="push-request-btn" style="font-size:13px;background:var(--blue);border-color:var(--blue);color:#fff;">Enable notifications</button>
-      <button class="btn" onclick="testPush()" style="font-size:13px;">Send test</button>
-      <span id="push-status" style="font-size:13px;color:var(--text3);font-family:var(--mono);"></span>
-    </div>
-  </div>
-</div>
 
 <div id="tab-scanner" class="tab-page active">
 <div class="container">
@@ -850,7 +855,7 @@ function updateEmptyState(){
   const el=document.getElementById('empty-state');
   if(el) el.querySelector('div:last-child').textContent='Run a scan to find reversal setups across your watchlist ('+SP50.length+' tickers)';
   const hdr=document.getElementById('header-sub');
-  if(hdr) hdr.innerHTML=SP50.map(s=>s.ticker).join(' · ')+' · 15-min bars · <span style="color:var(--amber);">⚠ Market hours only · No after-hours data</span>';
+  if(hdr) hdr.textContent=SP50.map(s=>s.ticker).join(' · ')+' · 15-min bars · Long setups only';
 }
 
 function log(msg,cls=''){
@@ -1151,7 +1156,7 @@ function renderResults(){
       const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" data-tip="${['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pullback'][i]}"></div>`).join('');
       cardsWrap.innerHTML+=`
       <div class="alert-card">
-        <div class="score-badge">${r.score}/6</div>
+        <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker">${r.ticker}</div>
         <div class="name">${r.name}</div>
         <div class="price-row">
@@ -1183,7 +1188,6 @@ function renderResults(){
     document.getElementById('results-body').innerHTML=all.map(r=>{
       const chgClass=r.chgPct>=0?'pos':'neg';
       const rsiClass=r.rsi<30?'pos':r.rsi>70?'neg':'neu';
-      const scoreClass=r.score>=5?'pos':r.score>=3?'amber':'neu';
       const dots=r.signals.map((s,i)=>`<div class="mini-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
       const rowId='ind-'+r.ticker;
       // Build inline indicator values string for the detail row
@@ -1206,7 +1210,7 @@ function renderResults(){
         <td>$${r.price.toFixed(2)}</td>
         <td class="${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</td>
         <td class="${rsiClass}">${r.rsi||'—'}</td>
-        <td><span style="color:var(--${scoreClass==='amber'?'amber':scoreClass==='pos'?'green':'text2'})">${r.score}/6</span></td>
+        <td><span style="${scoreInlineStyle(r.score)}">${r.score}/6</span></td>
         <td><div class="score-cell">${dots}</div></td>
         <td class="${r.pullbackPct>=10?'pos':'neu'}">${r.pullbackPct}%</td>
         <td style="color:var(--red);">$${r.stopLoss.toFixed(2)}</td>
@@ -1232,7 +1236,15 @@ function toggleIndicatorRow(id){
 }
 
 
-// ---- KEY MASKING — uses -webkit-text-security for masking (works on text input, allows paste) ----
+// ---- SCORE COLOR HELPER ----
+// 6/6 = bright yellow, 5/6 = amber, 4/6 = white, 3/6 = muted
+function scoreBadgeClass(s){return s>=6?'s6':s>=5?'s5':s>=4?'s4':'s3';}
+function scoreInlineStyle(s){
+  if(s>=6) return 'color:var(--yellow);font-weight:700;';
+  if(s>=5) return 'color:var(--amber);font-weight:600;';
+  if(s>=4) return 'color:var(--text);font-weight:500;';
+  return 'color:var(--text3);';
+}
 let keyRevealed=false;
 const KEY_PWD_STORAGE='sk_key_pwd';
 
@@ -1319,11 +1331,11 @@ if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
 
 function togglePush(){
   if(!pushOn){
-    // Turning ON
+    // Turning ON — open config panel if not already open
+    if(!configOpen) toggleConfig();
     if(Notification.permission==='granted'){
       pushOn=true;
       updatePushBtn();
-      document.getElementById('push-config-card').style.display='block';
       const st=document.getElementById('push-status');
       st.textContent='✓ Push alerts active — Launch alerts will notify you automatically.';
       st.style.color='var(--green)';
@@ -1331,16 +1343,15 @@ function togglePush(){
       if(rb){rb.textContent='✓ Enabled';rb.style.opacity='0.5';}
       log('Push notifications enabled.','good');
     } else {
-      document.getElementById('push-config-card').style.display='block';
-      document.getElementById('push-status').textContent='Click "Enable notifications" to allow browser alerts.';
-      document.getElementById('push-status').style.color='var(--amber)';
-      log('Click "Enable notifications" in the banner to allow push alerts.','warn');
+      const st=document.getElementById('push-status');
+      st.textContent='Click "Enable notifications" to allow browser alerts.';
+      st.style.color='var(--amber)';
+      log('Click "Enable notifications" in the Config panel.','warn');
     }
   } else {
     // Turning OFF
     pushOn=false;
     updatePushBtn();
-    document.getElementById('push-config-card').style.display='none';
     log('Push notifications disabled.');
   }
 }
@@ -1434,17 +1445,22 @@ async function testPush(){
 function updatePushBtn(){
   const btn=document.getElementById('push-btn');
   const lbl=document.getElementById('push-label');
+  const dot=document.getElementById('push-card-dot');
+  const statusPill=document.getElementById('push-card-status');
   if(pushOn){
     btn.textContent='🔔 Push: On';
     btn.style.color='var(--green)';btn.style.borderColor='var(--green-border)';
-    if(lbl){lbl.textContent='Alerts active';lbl.style.color='var(--green)';}
-    // Update enable button if it exists in DOM
+    if(lbl){lbl.textContent='Active';lbl.style.color='var(--green)';}
+    if(dot) dot.style.background='var(--green)';
+    if(statusPill){statusPill.textContent='ON';statusPill.style.background='var(--green-bg)';statusPill.style.color='var(--green)';}
     const rb=document.getElementById('push-request-btn');
     if(rb){rb.textContent='✓ Enabled';rb.style.opacity='0.5';}
   } else {
     btn.textContent='🔔 Push: Off';
     btn.style.color='';btn.style.borderColor='';
     if(lbl){lbl.textContent='';lbl.style.color='';}
+    if(dot) dot.style.background='var(--text3)';
+    if(statusPill){statusPill.textContent='OFF';statusPill.style.background='var(--surface2)';statusPill.style.color='var(--text3)';}
   }
 }
 
@@ -1519,7 +1535,21 @@ function switchTab(tab, btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
   btn.classList.add('active');
+  // Show Scan/Auto/Clear only on Reversal Scanner tab
+  const isReversal=tab==='scanner';
+  document.getElementById('scan-btn').style.display=isReversal?'inline-block':'none';
+  document.getElementById('auto-btn').style.display=isReversal?'inline-block':'none';
+  document.getElementById('auto-label').style.display=isReversal?'inline':'none';
+  document.getElementById('clear-btn').style.display=isReversal?'inline-block':'none';
   if(tab==='journal') jjRender();
+}
+
+// ---- CONFIG PANEL ----
+let configOpen=false;
+function toggleConfig(){
+  configOpen=!configOpen;
+  document.getElementById('config-panel').style.display=configOpen?'block':'none';
+  document.getElementById('config-toggle-btn').textContent=configOpen?'⚙ Config ▲':'⚙ Config ▼';
 }
 
 // ---- JOURNAL — shared localStorage key 'trades' with Alert System ----
@@ -2171,7 +2201,7 @@ function exRenderAlerts(){
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     cards.innerHTML+=`
     <div class="alert-card">
-      <div class="score-badge">${r.score}/6</div>
+      <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
       <div class="ticker">${r.ticker}</div>
       <div class="name">${r.name}</div>
       <div class="price-row">
@@ -2380,7 +2410,7 @@ function brRenderCards(){
     const indPanel=brBuildIndicatorPanel(r);
     return`<div class="alert-card" style="border-color:var(--green-border);">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),transparent);"></div>
-      <div class="score-badge" style="background:var(--green-bg);color:var(--green);border-color:var(--green-border);">${r.score}/6</div>
+      <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
       <div class="name">${r.name}</div>
       <div class="price-row">
@@ -2450,7 +2480,7 @@ function brRenderCards(){
           <td>$${r.price.toFixed(2)}</td>
           <td class="${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</td>
           <td style="color:${r.rsi>=50&&r.rsi<=65?'var(--green)':r.rsi>65?'var(--red)':'var(--text2)'};">${r.rsi||'—'}</td>
-          <td><span style="color:${scoreColor};font-weight:600;">${r.score}/6</span></td>
+          <td><span style="${scoreInlineStyle(r.score)}">${r.score}/6</span></td>
           <td><div class="score-cell">${dots}</div></td>
           <td style="color:${r.vsMA50>=0?'var(--green)':'var(--red)'};">${r.vsMA50!=null?(r.vsMA50>=0?'+':'')+r.vsMA50+'%':'—'}</td>
           <td style="color:${r.signals[4]?'var(--green)':'var(--text2)'};">${r.volRatio}×</td>
