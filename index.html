@@ -964,9 +964,9 @@ function calcATR(highs,lows,closes,p=14){
 
 function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
   const cp=closes[closes.length-1];
-  const wing=5; // bars each side for pivot detection
+  const wing=3; // 3 bars each side — works better for volatile small-caps
 
-  // 1. Find swing pivot highs (resistance candidates)
+  // 1. Find swing pivot highs and lows
   const pivotHighs=[];
   const pivotLows=[];
   for(let i=wing;i<highs.length-wing;i++){
@@ -978,9 +978,9 @@ function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
     if(isLow) pivotLows.push(l);
   }
 
-  // 2. Cluster nearby levels within 0.5% of each other
+  // 2. Cluster nearby levels within 0.5%
   function cluster(levels){
-    const sorted=[...new Set(levels)].sort((a,b)=>a-b);
+    const sorted=[...new Set(levels.map(v=>parseFloat(v.toFixed(4))))].sort((a,b)=>a-b);
     const out=[];
     let i=0;
     while(i<sorted.length){
@@ -994,7 +994,7 @@ function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
     return out;
   }
 
-  // 3. BB levels
+  // 3. BB levels — always include regardless of swing pivots
   const bbUp=lastVal(bbUpArr);
   const bbLo=lastVal(bbLoArr);
   const bbMid=bbUp&&bbLo?parseFloat(((bbUp+bbLo)/2).toFixed(2)):null;
@@ -1012,17 +1012,28 @@ function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
     .filter(v=>v>cp*1.001)
     .sort((a,b)=>a-b)
     .slice(0,n);
+
   const sup=cluster(pivotLows)
     .filter(v=>v<cp*0.999)
     .sort((a,b)=>b-a)
     .slice(0,n);
 
-  // Label BB levels for display
+  // 6. Fallback — if still empty, use recent high/low range
+  if(!res.length){
+    const recentHigh=parseFloat(Math.max(...highs.slice(-50)).toFixed(2));
+    if(recentHigh>cp) res.push(recentHigh);
+  }
+  if(!sup.length){
+    const recentLow=parseFloat(Math.min(...lows.slice(-50)).toFixed(2));
+    if(recentLow<cp) sup.push(recentLow);
+  }
+
+  // 7. Label each level
   function labelLevel(v){
-    if(bbUp&&Math.abs(v-bbUp)/bbUp<0.002) return {price:parseFloat(v.toFixed(2)),label:'BB upper',type:'bb'};
-    if(bbLo&&Math.abs(v-bbLo)/bbLo<0.002) return {price:parseFloat(v.toFixed(2)),label:'BB lower',type:'bb'};
-    if(bbMid&&Math.abs(v-bbMid)/bbMid<0.002) return {price:parseFloat(v.toFixed(2)),label:'BB mid',type:'bb'};
-    return {price:parseFloat(v.toFixed(2)),label:'Swing',type:'swing'};
+    if(bbUp&&Math.abs(v-bbUp)/bbUp<0.003) return{price:parseFloat(v.toFixed(2)),label:'BB upper',type:'bb'};
+    if(bbLo&&Math.abs(v-bbLo)/bbLo<0.003) return{price:parseFloat(v.toFixed(2)),label:'BB lower',type:'bb'};
+    if(bbMid&&Math.abs(v-bbMid)/bbMid<0.003) return{price:parseFloat(v.toFixed(2)),label:'BB mid',type:'bb'};
+    return{price:parseFloat(v.toFixed(2)),label:'Swing',type:'swing'};
   }
 
   return{
@@ -1251,7 +1262,7 @@ function renderResults(){
         <div class="signals">${dotsHtml}</div>
         ${buildIndicatorPanel(r)}
         ${buildSRPanel(r)}
-        <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
+        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
       </div>`;
     });
   } else {
@@ -1295,7 +1306,7 @@ function renderResults(){
         <td style="color:var(--green);">$${r.target2.toFixed(2)}</td>
         <td style="color:var(--text2);">$${r.atr}</td>
         ${srTableCell(r)}
-        <td><button class="btn" onclick='event.stopPropagation();jjPrefill(${JSON.stringify(r)})' style="font-size:10px;padding:4px 10px;color:var(--accent);border-color:var(--green-border);">+ Log</button></td>
+        <td><button class="btn" onclick='event.stopPropagation();jjPrefillByKey("${storeResult(r)}")' style="font-size:10px;padding:4px 10px;color:var(--accent);border-color:var(--green-border);">+ Log</button></td>
       </tr>
       <tr id="${rowId}" style="display:none;background:var(--surface2);">
         <td colspan="13" style="padding:10px 16px;">
@@ -1321,7 +1332,6 @@ function buildSRPanel(r){
   const cp=r.price;
   const res=r.sr.resistance||[];
   const sup=r.sr.support||[];
-  if(!res.length&&!sup.length) return '';
 
   function srRow(lv,isRes){
     const dist=parseFloat(((lv.price-cp)/cp*100).toFixed(1));
@@ -1367,6 +1377,11 @@ function srTableCell(r){
   const s1=sup[0]?`<span style="color:var(--green);font-family:var(--mono);font-size:11px;">S $${sup[0].price.toFixed(2)}</span>`:'';
   return`<td><div style="display:flex;flex-direction:column;gap:2px;">${r1}${s1}</div></td>`;
 }
+// ---- GLOBAL RESULT STORE — safe onclick reference avoiding JSON.stringify issues ----
+const _resultStore={};
+function storeResult(r){ const key=r.ticker+'_'+r.score+'_'+Date.now(); _resultStore[key]=r; return key; }
+function jjPrefillByKey(key){ const r=_resultStore[key]; if(r) jjPrefill(r); }
+
 // 6/6 = bright yellow, 5/6 = amber, 4/6 = white, 3/6 = muted
 function scoreBadgeClass(s){return s>=6?'s6':s>=5?'s5':s>=4?'s4':'s3';}
 function scoreInlineStyle(s){
@@ -2347,7 +2362,7 @@ function exRenderAlerts(){
       <div class="signals">${dotsHtml}</div>
       ${buildIndicatorPanel(r)}
       ${buildSRPanel(r)}
-      <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
+      <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
     </div>`;
   });
 }
@@ -2561,7 +2576,7 @@ function brRenderCards(){
       </div>
       <div class="signals">${dotsHtml}</div>
       ${indPanel}
-      <button class="btn btn-primary" onclick='jjPrefill(${JSON.stringify(r)})' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+      <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>`;
   }
 
@@ -2620,7 +2635,7 @@ function brRenderCards(){
           <td style="color:var(--red);">$${r.stopLoss.toFixed(2)}</td>
           <td style="color:var(--green);">$${r.target2.toFixed(2)}</td>
           ${srTableCell(r)}
-          <td><button class="btn" onclick='event.stopPropagation();jjPrefill(${JSON.stringify(r)})' style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green-border);">+ Log</button></td>
+          <td><button class="btn" onclick='event.stopPropagation();jjPrefillByKey("${storeResult(r)}")' style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green-border);">+ Log</button></td>
         </tr>
         <tr id="${rowId}" style="display:none;background:var(--surface2);">
           <td colspan="13" style="padding:10px 16px;">
