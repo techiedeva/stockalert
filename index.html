@@ -622,6 +622,56 @@ tr:hover td{background:var(--surface2);}
 <div id="tab-bullrun" class="tab-page">
 <div class="container">
 
+  <!-- ⚡ QUICK CHECK PANEL -->
+  <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px;">⚡ Quick Bull Run Check — any symbol</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+      <input type="text" id="qc-ticker" placeholder="e.g. MSFT, AMD, IONQ..."
+        style="font-family:var(--mono);font-size:14px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:180px;text-transform:uppercase;outline:none;"
+        onkeydown="if(event.key==='Enter')qcCheck()"
+        oninput="this.value=this.value.toUpperCase()"/>
+      <button class="btn btn-primary" id="qc-btn" onclick="qcCheck()" style="background:var(--green);border-color:var(--green);color:#000;font-size:13px;">⚡ Check</button>
+      <button class="btn" onclick="qcClear()" style="font-size:13px;">Clear</button>
+      <span id="qc-status" style="font-size:13px;font-family:var(--mono);color:var(--text3);"></span>
+    </div>
+
+    <!-- COMPACT RESULT — shown by default -->
+    <div id="qc-compact" style="display:none;">
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;">
+        <div id="qc-timestamp-banner"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div>
+              <div style="font-family:var(--mono);font-size:18px;font-weight:600;" id="qc-name-disp">—</div>
+              <div style="font-size:12px;color:var(--text3);" id="qc-fullname-disp">—</div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:22px;font-weight:500;" id="qc-price-disp">—</div>
+              <div style="font-family:var(--mono);font-size:12px;" id="qc-chg-disp">—</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="qc-score-badge" style="font-family:var(--mono);font-size:16px;font-weight:700;padding:6px 14px;border-radius:8px;">—</div>
+            <button class="btn" onclick="qcToggleExpand()" id="qc-expand-btn" style="font-size:12px;">▼ Full details</button>
+          </div>
+        </div>
+        <!-- Signal dots row -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;" id="qc-dots-row"></div>
+        <!-- Key stats row -->
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--text2);" id="qc-stats-row"></div>
+        <!-- Stop / Target -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;" id="qc-levels-row"></div>
+        <!-- Verdict -->
+        <div id="qc-verdict" style="margin-top:10px;padding:8px 12px;border-radius:6px;font-size:13px;font-family:var(--mono);"></div>
+        <!-- Log button -->
+        <button class="btn btn-primary" id="qc-log-btn" onclick="qcLogTrade()" style="width:100%;margin-top:10px;font-size:13px;padding:7px 0;background:var(--green);border-color:var(--green);color:#000;display:none;">+ Log trade</button>
+      </div>
+
+      <!-- EXPANDED FULL DETAILS -->
+      <div id="qc-expanded" style="display:none;margin-top:8px;" ></div>
+    </div>
+  </div>
+
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
       <div>
@@ -1247,6 +1297,7 @@ function renderResults(){
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker">${r.ticker}</div>
         <div class="name">${r.name}</div>
+        ${buildDataTimestamp()}
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
           <div class="change ${chgClass}">${chgStr}</div>
@@ -1377,6 +1428,42 @@ function srTableCell(r){
   const s1=sup[0]?`<span style="color:var(--green);font-family:var(--mono);font-size:11px;">S $${sup[0].price.toFixed(2)}</span>`:'';
   return`<td><div style="display:flex;flex-direction:column;gap:2px;">${r1}${s1}</div></td>`;
 }
+// ---- DATA TIMESTAMP + MARKET HOURS STATUS ----
+function buildDataTimestamp(){
+  const now=new Date();
+  const etOffset=-5; // EST (adjust -4 for EDT)
+  const utc=now.getTime()+(now.getTimezoneOffset()*60000);
+  const et=new Date(utc+(3600000*etOffset));
+  const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
+  const timeStr=et.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const dateStr=et.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const isWeekday=d>=1&&d<=5;
+  const isMarketHours=isWeekday&&(h>9||(h===9&&m>=30))&&h<16;
+  const isPreMarket=isWeekday&&h>=4&&(h<9||(h===9&&m<30));
+  const isAfterHours=isWeekday&&h>=16&&h<20;
+
+  let status,color,bg,msg;
+  if(isMarketHours){
+    status='● LIVE';color='var(--green)';bg='var(--green-bg)';
+    msg='Market open · Data is current 15-min bar';
+  } else if(isPreMarket){
+    status='◑ PRE-MARKET';color='var(--amber)';bg='var(--amber-bg)';
+    msg='Pre-market · Signals based on prior close · Verify at 9:45am open';
+  } else if(isAfterHours){
+    status='◑ AFTER-HOURS';color='var(--amber)';bg='var(--amber-bg)';
+    msg='After-hours · Signals based on '+dateStr+' close · Recheck at next open';
+  } else {
+    status='○ MARKET CLOSED';color='var(--text3)';bg='var(--surface2)';
+    msg='Weekend/closed · Signals based on last close · Recheck at next open';
+  }
+
+  return`<div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border-radius:5px;padding:5px 8px;margin-bottom:8px;flex-wrap:wrap;gap:4px;">
+    <span style="font-family:var(--mono);font-size:10px;font-weight:600;color:${color};">${status}</span>
+    <span style="font-family:var(--mono);font-size:10px;color:${color};opacity:0.8;">${timeStr} ET</span>
+    <span style="font-size:10px;color:${color};opacity:0.75;width:100%;">${msg}</span>
+  </div>`;
+}
+
 // ---- GLOBAL RESULT STORE — safe onclick reference avoiding JSON.stringify issues ----
 const _resultStore={};
 function storeResult(r){ const key=r.ticker+'_'+r.score+'_'+Date.now(); _resultStore[key]=r; return key; }
@@ -2349,6 +2436,7 @@ function exRenderAlerts(){
       <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
       <div class="ticker">${r.ticker}</div>
       <div class="name">${r.name}</div>
+      ${buildDataTimestamp()}
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
@@ -2561,6 +2649,7 @@ function brRenderCards(){
       <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
       <div class="name">${r.name}</div>
+      ${buildDataTimestamp()}
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
@@ -2576,6 +2665,7 @@ function brRenderCards(){
       </div>
       <div class="signals">${dotsHtml}</div>
       ${indPanel}
+      ${buildSRPanel(r)}
       <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>`;
   }
@@ -2786,6 +2876,157 @@ function brToggleAuto(){
     lbl.textContent='';
     brLog('Auto-scan off.');
   }
+}
+
+// ---- QUICK CHECK — custom symbol bull run analysis ----
+let _qcResult=null;
+let _qcExpanded=false;
+
+async function qcCheck(){
+  const ticker=(document.getElementById('qc-ticker').value||'').toUpperCase().trim();
+  if(!ticker){document.getElementById('qc-status').textContent='Enter a ticker first.';return;}
+  const key=getKey();
+  if(!key){document.getElementById('qc-status').textContent='Save your API key in Config first.';return;}
+
+  const btn=document.getElementById('qc-btn');
+  btn.disabled=true;btn.textContent='Checking...';
+  document.getElementById('qc-status').textContent='Fetching 200 bars for '+ticker+'...';
+  document.getElementById('qc-status').style.color='var(--text3)';
+  document.getElementById('qc-compact').style.display='none';
+
+  try{
+    // Try exchanges in order
+    let values=null;
+    for(const exchange of EXCHANGES){
+      const params={symbol:ticker,interval:'15min',outputsize:'200'};
+      if(exchange) params.exchange=exchange;
+      const qs=new URLSearchParams({...params,apikey:key}).toString();
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      const data=await res.json();
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+        continue;
+      }
+      if(data.values&&data.values.length>=50){values=data.values;break;}
+    }
+    if(!values) throw new Error('No data found for '+ticker+'. Check the symbol.');
+
+    // Run bull run analysis
+    const r=analyzeBullRun(ticker,ticker,values);
+    _qcResult=r;
+    _qcExpanded=false;
+    qcRender(r);
+    document.getElementById('qc-status').textContent='';
+  }catch(e){
+    document.getElementById('qc-status').textContent='✗ '+(e.message==='invalid_key'?'Invalid API key':e.message);
+    document.getElementById('qc-status').style.color='var(--red)';
+  }
+  btn.disabled=false;btn.textContent='⚡ Check';
+}
+
+function qcRender(r){
+  const sigLabels=['RSI 50-65','MACD>0','Price>MA50','Price>MA200','Vol expanding','BB squeeze'];
+  const scoreClass=r.score>=6?'s6':r.score>=5?'s5':r.score>=4?'s4':'s3';
+  const scoreColors={s6:'var(--yellow)',s5:'var(--amber)',s4:'var(--text)',s3:'var(--text3)'};
+  const scoreBgs={s6:'var(--yellow-bg)',s5:'var(--amber-bg)',s4:'var(--surface2)',s3:'var(--surface2)'};
+  const chgColor=r.chgPct>=0?'var(--green)':'var(--red)';
+
+  // Header
+  document.getElementById('qc-name-disp').textContent=r.ticker;
+  document.getElementById('qc-fullname-disp').textContent=r.name||r.ticker;
+  document.getElementById('qc-price-disp').textContent='$'+r.price.toFixed(2);
+  const chgEl=document.getElementById('qc-chg-disp');
+  chgEl.textContent=(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)+'%';
+  chgEl.style.color=chgColor;
+
+  // Score badge
+  const badge=document.getElementById('qc-score-badge');
+  badge.textContent=r.score+'/6';
+  badge.style.background=scoreBgs[scoreClass];
+  badge.style.color=scoreColors[scoreClass];
+  badge.style.border='1px solid '+scoreColors[scoreClass];
+
+  // Signal dots with labels
+  document.getElementById('qc-dots-row').innerHTML=r.signals.map((s,i)=>
+    `<div style="display:flex;align-items:center;gap:4px;">
+      <div style="width:9px;height:9px;border-radius:50%;background:${s?'var(--green)':'var(--border2)'};flex-shrink:0;"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:${s?'var(--green)':'var(--text3)'};">${sigLabels[i]}</span>
+    </div>`
+  ).join('');
+
+  // Data timestamp banner
+  document.getElementById('qc-compact').querySelector('#qc-timestamp-banner').innerHTML=buildDataTimestamp();
+
+  // Key stats
+  document.getElementById('qc-stats-row').innerHTML=
+    `<span>RSI: <strong style="color:${r.rsi>=50&&r.rsi<=65?'var(--green)':r.rsi>65?'var(--red)':'var(--text2)'};">${r.rsi||'—'}</strong></span>`+
+    `<span>MACD: <strong style="color:${r.cMACD>0?'var(--green)':'var(--red)'};">${r.cMACD>=0?'+':''}${r.cMACD||'—'}</strong></span>`+
+    `<span>Vol: <strong style="color:${r.signals[4]?'var(--green)':'var(--text2)'};">${r.volRatio}×</strong></span>`+
+    `<span>ATR: <strong>$${r.atr}</strong></span>`+
+    (r.vsMA50!=null?`<span>vs MA50: <strong style="color:${r.vsMA50>=0?'var(--green)':'var(--red)'};">${r.vsMA50>=0?'+':''}${r.vsMA50}%</strong></span>`:'');
+
+  // Stop / Target levels
+  document.getElementById('qc-levels-row').innerHTML=
+    `<div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:6px;padding:8px 10px;">
+      <div style="font-size:10px;color:var(--red);font-family:var(--mono);">STOP-LOSS</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--red);">$${r.stopLoss.toFixed(2)}</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;">
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">ENTRY</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--text);">$${r.price.toFixed(2)}</div>
+    </div>
+    <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:6px;padding:8px 10px;">
+      <div style="font-size:10px;color:var(--green);font-family:var(--mono);">TARGET 2:1</div>
+      <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--green);">$${r.target2.toFixed(2)}</div>
+    </div>`;
+
+  // Verdict
+  const verdictEl=document.getElementById('qc-verdict');
+  if(r.score>=5){
+    verdictEl.style.background='var(--green-bg)';verdictEl.style.color='var(--green)';verdictEl.style.border='1px solid var(--green-border)';
+    verdictEl.textContent='✓ Strong bull setup — '+r.score+'/6 signals aligned. Momentum confirmed, volume supporting.';
+  } else if(r.score>=4){
+    verdictEl.style.background='var(--amber-bg)';verdictEl.style.color='var(--amber)';verdictEl.style.border='1px solid var(--amber-border)';
+    verdictEl.textContent='⚡ Building momentum — '+r.score+'/6 signals. Watch for the remaining signals to fire.';
+  } else if(r.score>=2){
+    verdictEl.style.background='var(--surface2)';verdictEl.style.color='var(--text2)';verdictEl.style.border='1px solid var(--border2)';
+    verdictEl.textContent='⚠ Early/weak setup — only '+r.score+'/6 signals. Not ready for entry yet.';
+  } else {
+    verdictEl.style.background='var(--red-bg)';verdictEl.style.color='var(--red)';verdictEl.style.border='1px solid var(--red-border)';
+    verdictEl.textContent='✗ No bull run setup — '+r.score+'/6 signals. '+r.ticker+' does not show bull run characteristics right now.';
+  }
+
+  // Log button
+  document.getElementById('qc-log-btn').style.display=r.score>=4?'block':'none';
+
+  // Expanded panel (hidden by default)
+  document.getElementById('qc-expanded').innerHTML=
+    brBuildIndicatorPanel(r)+buildSRPanel(r);
+  document.getElementById('qc-expanded').style.display='none';
+
+  document.getElementById('qc-compact').style.display='block';
+  _qcExpanded=false;
+  document.getElementById('qc-expand-btn').textContent='▼ Full details';
+}
+
+function qcToggleExpand(){
+  _qcExpanded=!_qcExpanded;
+  document.getElementById('qc-expanded').style.display=_qcExpanded?'block':'none';
+  document.getElementById('qc-expand-btn').textContent=_qcExpanded?'▲ Hide details':'▼ Full details';
+}
+
+function qcClear(){
+  _qcResult=null;_qcExpanded=false;
+  document.getElementById('qc-ticker').value='';
+  document.getElementById('qc-status').textContent='';
+  document.getElementById('qc-compact').style.display='none';
+  document.getElementById('qc-btn').textContent='⚡ Check';
+}
+
+function qcLogTrade(){
+  if(!_qcResult) return;
+  jjPrefill(_qcResult);
 }
 
 // On load: sync push button state if permission already granted
