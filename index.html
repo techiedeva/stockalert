@@ -1384,16 +1384,18 @@ function buildSRPanel(r){
   const res=r.sr.resistance||[];
   const sup=r.sr.support||[];
 
-  function srRow(lv,isRes){
+  function srRow(lv,isRes,idx){
     const dist=parseFloat(((lv.price-cp)/cp*100).toFixed(1));
     const distStr=(isRes?'+':'')+dist+'%';
     const typeStyle=lv.type==='bb'
       ?'color:var(--blue);font-size:10px;'
       :'color:var(--text3);font-size:10px;';
     const priceColor=isRes?'var(--red)':'var(--green)';
+    const label=isRes?'R'+(idx+1):'S'+(idx+1);
     return`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;gap:6px;">
         <div style="width:3px;height:14px;background:${priceColor};border-radius:2px;flex-shrink:0;"></div>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);min-width:24px;">${label}</span>
         <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:${priceColor};">$${lv.price.toFixed(2)}</span>
         <span style="${typeStyle}">${lv.label}</span>
       </div>
@@ -1401,8 +1403,8 @@ function buildSRPanel(r){
     </div>`;
   }
 
-  const resRows=[...res].reverse().map(lv=>srRow(lv,true)).join('');
-  const supRows=sup.map(lv=>srRow(lv,false)).join('');
+  const resRows=[...res].reverse().map((lv,i)=>srRow(lv,true,res.length-1-i)).join('');
+  const supRows=sup.map((lv,i)=>srRow(lv,false,i)).join('');
   const currentRow=`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);background:var(--surface3);">
     <div style="display:flex;align-items:center;gap:6px;">
       <div style="width:3px;height:14px;background:var(--text2);border-radius:2px;flex-shrink:0;"></div>
@@ -1424,8 +1426,8 @@ function srTableCell(r){
   if(!r.sr) return '<td style="color:var(--text3);font-size:11px;">—</td>';
   const res=r.sr.resistance||[];
   const sup=r.sr.support||[];
-  const r1=res[0]?`<span style="color:var(--red);font-family:var(--mono);font-size:11px;">R $${res[0].price.toFixed(2)}</span>`:'';
-  const s1=sup[0]?`<span style="color:var(--green);font-family:var(--mono);font-size:11px;">S $${sup[0].price.toFixed(2)}</span>`:'';
+  const r1=res[0]?`<span style="color:var(--red);font-family:var(--mono);font-size:11px;">R1 $${res[0].price.toFixed(2)}</span>`:'';
+  const s1=sup[0]?`<span style="color:var(--green);font-family:var(--mono);font-size:11px;">S1 $${sup[0].price.toFixed(2)}</span>`:'';
   return`<td><div style="display:flex;flex-direction:column;gap:2px;">${r1}${s1}</div></td>`;
 }
 // ---- DATA TIMESTAMP + MARKET HOURS STATUS ----
