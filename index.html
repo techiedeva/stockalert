@@ -1226,41 +1226,44 @@ const VIX_EXTREME=35;     // warn and suggest not trading
 async function fetchVIX(){
   // VIX is not available on Twelve Data free tier — use Yahoo Finance instead
   // Yahoo Finance provides ^VIX free with no API key required
+  log('VIX: trying Yahoo Finance query1...');
   const endpoints=[
-    'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d',
-    'https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d',
+    {url:'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d', label:'Yahoo query1'},
+    {url:'https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d', label:'Yahoo query2'},
   ];
-  for(const url of endpoints){
+  for(const ep of endpoints){
     try{
-      const res=await fetch(url,{
+      log(`VIX: fetching from ${ep.label}...`);
+      const res=await fetch(ep.url,{
         cache:'no-store',
         headers:{'Accept':'application/json'}
       });
+      log(`VIX: ${ep.label} responded HTTP ${res.status}`,(res.ok?'good':'warn'));
       if(!res.ok){
-        log(`VIX Yahoo (${url.includes('query2')?'q2':'q1'}): HTTP ${res.status}`,'warn');
+        log(`VIX: ${ep.label} HTTP ${res.status} — trying next source...`,'warn');
         continue;
       }
       const data=await res.json();
-      // Yahoo Finance chart response structure
       const result=data?.chart?.result?.[0];
       const price=result?.meta?.regularMarketPrice
              ?? result?.meta?.previousClose
              ?? null;
+      log(`VIX: ${ep.label} parsed price = ${price!==null?price:'null (not found in response)'}`,(price!==null?'good':'warn'));
       if(price&&!isNaN(price)){
         const v=parseFloat(price.toFixed(2));
         l2VIX=v;
         l2VIXStatus=v>=VIX_EXTREME?'extreme':v>=VIX_ELEVATED?'elevated':'normal';
         l2MinScore=v>=VIX_ELEVATED?6:5;
         const emoji=l2VIXStatus==='extreme'?'⛔':l2VIXStatus==='elevated'?'⚠':'✓';
-        log(`L2 VIX: ${v.toFixed(1)} ${emoji} ${l2VIXStatus} · min score: ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
+        log(`L2 VIX: ${v.toFixed(1)} ${emoji} ${l2VIXStatus} · min score: ${l2MinScore}/6 · source: ${ep.label}`,(l2VIXStatus==='normal'?'good':'warn'));
         return v;
       }
-      log('VIX Yahoo: response OK but no price value found','warn');
+      log(`VIX: ${ep.label} returned no usable price — trying next source...`,'warn');
     }catch(e){
-      log(`VIX Yahoo fetch error: ${e.message}`,'warn');
+      log(`VIX: ${ep.label} exception — ${e.message} · trying next source...`,'warn');
     }
   }
-  log('VIX unavailable (Yahoo Finance unreachable) — using default min score 5/6','warn');
+  log('VIX: all sources failed (Yahoo query1 + query2) — defaulting to min score 5/6. Check browser console for CORS errors.','warn');
   return null;
 }
 
