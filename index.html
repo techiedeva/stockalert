@@ -651,6 +651,7 @@ tr:hover td{background:var(--surface2);}
     <div id="qc-compact" style="display:none;">
       <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;">
         <div id="qc-timestamp-banner"></div>
+        <div id="qc-l2-row"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
           <div style="display:flex;align-items:center;gap:12px;">
             <div>
@@ -1193,7 +1194,23 @@ function analyzeStock(ticker,name,values){
   };
 }
 
-// ---- LEVEL 2 — INSTITUTIONAL FILTERS ----
+// ── PRE-FETCH ALL DAILY TRENDS UPFRONT ────────────────────────────────────
+// Called once before main scan loop. Paced at 8s to stay within rate limit.
+// Populates l2DailyCache for all tickers so main scan needs zero extra calls.
+async function prefetchAllDailyTrends(logFn, abortCheck){
+  const tickers=SP50.map(s=>s.ticker);
+  logFn(`L2 Phase 1: Pre-fetching daily trend for ${tickers.length} tickers (~${Math.ceil(tickers.length*8/60)} min)...`,'good');
+  for(let i=0;i<tickers.length;i++){
+    if(abortCheck&&abortCheck()) break;
+    const ticker=tickers[i];
+    await fetchDailyTrend(ticker); // populates l2DailyCache[ticker]
+    if(i<tickers.length-1) await sleep(8000); // pace: 1 call per 8s = 7.5/min < 8 limit
+  }
+  const above=Object.values(l2DailyCache).filter(d=>d.aboveMA50).length;
+  const below=Object.values(l2DailyCache).filter(d=>!d.aboveMA50).length;
+  const missing=tickers.length-Object.keys(l2DailyCache).length;
+  logFn(`L2 Phase 1 complete: ${above} above MA50 (will scan) · ${below} below MA50 (will GATE) · ${missing} no daily data (will allow through)`,'good');
+}
 let l2VIX=null;           // live VIX value fetched at scan start
 let l2VIXStatus='unknown';// 'normal' | 'elevated' | 'extreme'
 let l2EconEvents=[];      // upcoming economic events [{date,name,impact}]
@@ -1437,7 +1454,8 @@ async function startScan(){
   document.getElementById('empty-state').style.display='none';
 
   // ── LEVEL 2 PRE-SCAN ─────────────────────────────
-  log('L2: Fetching VIX, calendar, QQQ benchmark...','good');
+  // Phase 1a: VIX + calendar + QQQ (fast — 3 calls)
+  log('L2 Phase 1a: Fetching VIX, calendar, QQQ benchmark...','good');
   await fetchVIX();
   await fetchEconCalendar();
   try{
@@ -1447,11 +1465,16 @@ async function startScan(){
       const closes=v.map(x=>parseFloat(x.close));
       const n=closes.length;
       l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
-      log(`L2 QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · VIX: ${l2VIX?l2VIX.toFixed(1):'—'} · Min score: ${l2MinScore}/6`,'good');
+      log(`L2 VIX: ${l2VIX?l2VIX.toFixed(1):'unavail'} · QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · Min score: ${l2MinScore}/6`,'good');
     }
   }catch(e){ log('QQQ benchmark failed: '+e.message,'warn'); }
+  await sleep(8000); // pace gap before phase 2
 
-  log('Starting scan of '+SP50.length+' tickers: '+SP50.map(s=>s.ticker).join(', ')+'...');
+  // Phase 1b: Pre-fetch ALL daily bars (paced, fills l2DailyCache)
+  await prefetchAllDailyTrends(log, ()=>abortScan);
+  if(abortScan){ log('Scan aborted during pre-fetch.','warn'); return; }
+
+  log('L2 Phase 2: Starting 15-min signal scan — '+SP50.length+' tickers...');
 
   for(let i=0;i<SP50.length;i++){
     if(abortScan){ log('Scan stopped by user.','warn'); break; }
@@ -1460,16 +1483,16 @@ async function startScan(){
     setProgress(pct);
     setStatus('scanning',`Scanning ${ticker} (${i+1}/${SP50.length})`);
     try{
-      log('Fetching '+ticker+'...');
-      const values=await tdGet(ticker);
-      if(!values){log(ticker+' — no data','warn');continue;}
-
-      // ── LEVEL 2: Daily trend gate ─────────────────
-      const dailyTrend=await fetchDailyTrend(ticker);
+      // ── LEVEL 2: Daily trend gate (uses pre-fetched cache) ──
+      const dailyTrend=l2DailyCache[ticker]||null;
       if(dailyTrend&&!dailyTrend.aboveMA50){
         log(`${ticker}: GATED — daily trend bearish (${dailyTrend.pctFromMA50}% below 50-day MA). Filtered out.`,'warn');
         continue;
       }
+
+      log('Fetching '+ticker+'...');
+      const values=await tdGet(ticker);
+      if(!values){log(ticker+' — no data','warn');continue;}
 
       const result=analyzeStock(ticker,name,values);
 
@@ -3119,7 +3142,8 @@ async function brStartScan(){
   let bullFound=0;
 
   // ── LEVEL 2 PRE-SCAN ─────────────────────────────
-  brLog('L2: Fetching VIX + QQQ benchmark...');
+  // Phase 1: VIX + QQQ (fast — 2 calls)
+  brLog('L2 Phase 1a: Fetching VIX + QQQ benchmark...');
   await fetchVIX();
   try{
     const qqqVals=await brFetchBars('QQQ');
@@ -3128,11 +3152,16 @@ async function brStartScan(){
       const closes=v.map(x=>parseFloat(x.close));
       const n=closes.length;
       l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
-      brLog(`L2 QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · VIX: ${l2VIX?l2VIX.toFixed(1):'—'} · Min score: ${l2MinScore}/6`,'good');
+      brLog(`L2 VIX: ${l2VIX?l2VIX.toFixed(1):'unavail'} · QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · Min score: ${l2MinScore}/6`,'good');
     }
   }catch(e){ brLog('QQQ benchmark failed: '+e.message,'warn'); }
+  await sleep(8000); // pace gap before phase 2
 
-  brLog('Bull Run scan starting — '+SP50.length+' tickers · daily trend gate active...');
+  // Phase 2: Pre-fetch ALL daily bars (paced, fills l2DailyCache)
+  await prefetchAllDailyTrends(brLog, ()=>brAbort);
+  if(brAbort) return;
+
+  brLog('L2 Phase 2: Starting 15-min signal scan — '+SP50.length+' tickers...');
 
   for(let i=0;i<SP50.length;i++){
     if(brAbort) break;
@@ -3142,15 +3171,15 @@ async function brStartScan(){
     brSetProgress(pct,`Scanning ${ticker} (${i+1}/${SP50.length})`,`~${secsLeft}s left`);
 
     try{
-      const values=await brFetchBars(ticker);
-      if(!values){brLog(ticker+' — no data','warn');continue;}
-
-      // ── LEVEL 2: Daily trend gate ─────────────────
-      const dailyTrend=await fetchDailyTrend(ticker);
+      // ── LEVEL 2: Daily trend gate (uses pre-fetched cache) ──
+      const dailyTrend=l2DailyCache[ticker]||null;
       if(dailyTrend&&!dailyTrend.aboveMA50){
         brLog(`${ticker}: GATED — daily trend bearish (${dailyTrend.pctFromMA50}% below 50-day MA). Filtered out.`,'warn');
         continue;
       }
+
+      const values=await brFetchBars(ticker);
+      if(!values){brLog(ticker+' — no data','warn');continue;}
 
       scanned++;
       document.getElementById('br-scanned').textContent=scanned;
@@ -3255,12 +3284,12 @@ async function qcCheck(){
 
   const btn=document.getElementById('qc-btn');
   btn.disabled=true;btn.textContent='Checking...';
-  document.getElementById('qc-status').textContent='Fetching 200 bars for '+ticker+'...';
   document.getElementById('qc-status').style.color='var(--text3)';
   document.getElementById('qc-compact').style.display='none';
 
   try{
-    // Try exchanges in order
+    // Step 1 — Fetch 15-min bars
+    document.getElementById('qc-status').textContent='Fetching 15-min bars...';
     let values=null;
     for(const exchange of ['','NASDAQ','NYSE','AMEX']){
       const params={symbol:ticker,interval:'15min',outputsize:'200'};
@@ -3277,8 +3306,51 @@ async function qcCheck(){
     }
     if(!values) throw new Error('No data found for '+ticker+'. Check the symbol.');
 
-    // Run bull run analysis
+    // Step 2 — Fetch daily trend (L2 gate)
+    document.getElementById('qc-status').textContent='Checking daily trend...';
+    await sleep(1500); // small pace between calls
+    const dailyTrend=await fetchDailyTrend(ticker);
+
+    // Step 3 — Fetch QQQ for RS if not already available
+    if(l2QQQChange===null){
+      document.getElementById('qc-status').textContent='Fetching QQQ benchmark...';
+      await sleep(1500);
+      try{
+        for(const exchange of ['','AMEX']){
+          const params={symbol:'QQQ',interval:'15min',outputsize:'5'};
+          if(exchange) params.exchange=exchange;
+          const qs=new URLSearchParams({...params,apikey:key}).toString();
+          const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+          const data=await res.json();
+          if(data.values&&data.values.length>=2){
+            const closes=[...data.values].reverse().map(v=>parseFloat(v.close));
+            l2QQQChange=parseFloat(((closes[closes.length-1]-closes[closes.length-2])/closes[closes.length-2]*100).toFixed(2));
+            break;
+          }
+        }
+      }catch(e){/* RS unavailable — non-critical */}
+    }
+
+    // Step 4 — Run bull run analysis
     const r=analyzeBullRun(ticker,ticker,values);
+
+    // Step 5 — Attach L2 enrichment
+    const vals=[...values].reverse();
+    const volProfile=calcVolumeProfile(
+      vals.map(v=>parseFloat(v.high)),
+      vals.map(v=>parseFloat(v.low)),
+      vals.map(v=>parseFloat(v.close)),
+      vals.map(v=>parseFloat(v.volume)||0)
+    );
+    r.l2={
+      dailyTrend,
+      rs:calcRelativeStrength(r.chgPct),
+      econWarning:getEconWarning(ticker),
+      volProfile,
+      vixStatus:l2VIXStatus,
+      minScore:l2MinScore
+    };
+
     _qcResult=r;
     _qcExpanded=false;
     qcRender(r);
@@ -3322,6 +3394,27 @@ function qcRender(r){
 
   // Data timestamp banner
   document.getElementById('qc-compact').querySelector('#qc-timestamp-banner').innerHTML=buildDataTimestamp();
+
+  // L2 badges row
+  const l2Row=document.getElementById('qc-l2-row');
+  if(l2Row){
+    let l2Html='';
+    if(r.l2){
+      l2Html+=buildVIXBanner();
+      if(r.l2.econWarning) l2Html+=buildEconWarning(r.ticker);
+      l2Html+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+      if(r.l2.dailyTrend) l2Html+=buildTrendBadge(r.l2.dailyTrend);
+      if(r.l2.rs!==null) l2Html+=buildRSBadge(r.l2.rs);
+      l2Html+='</div>';
+      // Daily trend gate warning in verdict
+      if(r.l2.dailyTrend&&!r.l2.dailyTrend.aboveMA50){
+        l2Html+=`<div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:6px;padding:8px 12px;margin-bottom:8px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--red);">
+          ⛔ DAILY TREND GATE: ${r.ticker} is ${r.l2.dailyTrend.pctFromMA50}% below its 50-day MA. In a real scan this ticker would be filtered out. Trade with extreme caution.
+        </div>`;
+      }
+    }
+    l2Row.innerHTML=l2Html;
+  }
 
   // Key stats
   document.getElementById('qc-stats-row').innerHTML=
