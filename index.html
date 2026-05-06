@@ -1226,20 +1226,41 @@ const VIX_EXTREME=35;     // warn and suggest not trading
 async function fetchVIX(){
   const key=getKey();
   if(!key) return null;
-  try{
-    // VIX on Twelve Data
-    const qs=new URLSearchParams({symbol:'VIX',interval:'1day',outputsize:'1',apikey:key}).toString();
-    const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
-    const data=await res.json();
-    if(data.values&&data.values.length>0){
-      const v=parseFloat(data.values[0].close);
-      l2VIX=v;
-      l2VIXStatus=v>=VIX_EXTREME?'extreme':v>=VIX_ELEVATED?'elevated':'normal';
-      l2MinScore=v>=VIX_ELEVATED?6:5;
-      log(`L2 VIX: ${v.toFixed(1)} → ${l2VIXStatus} · min score set to ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
-      return v;
+  // VIX is a CBOE index — try with exchange hint first, then without
+  const attempts=[
+    {symbol:'VIX',exchange:'CBOE'},
+    {symbol:'VIX',exchange:''},
+    {symbol:'^VIX',exchange:''},   // Yahoo-style fallback
+  ];
+  for(const attempt of attempts){
+    try{
+      const params={symbol:attempt.symbol,interval:'1day',outputsize:'1',apikey:key};
+      if(attempt.exchange) params.exchange=attempt.exchange;
+      const qs=new URLSearchParams(params).toString();
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      const data=await res.json();
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
+        log(`VIX fetch (${attempt.symbol}${attempt.exchange?' on '+attempt.exchange:''}): ${data.message||'API error'}`,'warn');
+        continue;
+      }
+      if(data.values&&data.values.length>0){
+        const v=parseFloat(data.values[0].close);
+        l2VIX=v;
+        l2VIXStatus=v>=VIX_EXTREME?'extreme':v>=VIX_ELEVATED?'elevated':'normal';
+        l2MinScore=v>=VIX_ELEVATED?6:5;
+        log(`L2 VIX: ${v.toFixed(1)} → status: ${l2VIXStatus} · min score: ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
+        return v;
+      }
+    }catch(e){
+      if(e.message==='invalid_key') throw e;
+      if(e.message==='rate_limit'){log('VIX: rate limit hit — skipping, using default threshold','warn');return null;}
+      log(`VIX fetch error (${attempt.symbol}): ${e.message}`,'warn');
     }
-  }catch(e){ log('VIX fetch failed: '+e.message,'warn'); }
+  }
+  log('VIX unavailable — using default min score 5/6. All three fetch attempts failed.','warn');
   return null;
 }
 
