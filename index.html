@@ -2969,6 +2969,12 @@ function brRenderCards(){
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
       <div class="name">${r.name}</div>
       ${buildDataTimestamp()}
+      ${r.l2?buildVIXBanner():''}
+      ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+        ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
+        ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+      </div>
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
@@ -3090,6 +3096,7 @@ async function brStartScan(){
   const key=getKey();
   if(!key){alert('Paste your Twelve Data API key first.');return;}
   brAbort=false; brResults=[]; brApiCalls=0;
+  l2DailyCache={}; // reset daily trend cache for fresh scan
   const scanStart=Date.now();
 
   document.getElementById('br-progress-card').style.display='block';
@@ -3111,7 +3118,21 @@ async function brStartScan(){
   let scanned=0;
   let bullFound=0;
 
-  brLog('Bull Run scan starting — '+SP50.length+' tickers at 8s pace...');
+  // ── LEVEL 2 PRE-SCAN ─────────────────────────────
+  brLog('L2: Fetching VIX + QQQ benchmark...');
+  await fetchVIX();
+  try{
+    const qqqVals=await brFetchBars('QQQ');
+    if(qqqVals){
+      const v=[...qqqVals].reverse();
+      const closes=v.map(x=>parseFloat(x.close));
+      const n=closes.length;
+      l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
+      brLog(`L2 QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · VIX: ${l2VIX?l2VIX.toFixed(1):'—'} · Min score: ${l2MinScore}/6`,'good');
+    }
+  }catch(e){ brLog('QQQ benchmark failed: '+e.message,'warn'); }
+
+  brLog('Bull Run scan starting — '+SP50.length+' tickers · daily trend gate active...');
 
   for(let i=0;i<SP50.length;i++){
     if(brAbort) break;
@@ -3119,17 +3140,43 @@ async function brStartScan(){
     const pct=Math.round(((i+1)/SP50.length)*100);
     const secsLeft=Math.round((SP50.length-i-1)*PACE/1000);
     brSetProgress(pct,`Scanning ${ticker} (${i+1}/${SP50.length})`,`~${secsLeft}s left`);
-    brLog('Analyzing '+ticker+' for bull run signals...');
 
     try{
       const values=await brFetchBars(ticker);
       if(!values){brLog(ticker+' — no data','warn');continue;}
+
+      // ── LEVEL 2: Daily trend gate ─────────────────
+      const dailyTrend=await fetchDailyTrend(ticker);
+      if(dailyTrend&&!dailyTrend.aboveMA50){
+        brLog(`${ticker}: GATED — daily trend bearish (${dailyTrend.pctFromMA50}% below 50-day MA). Filtered out.`,'warn');
+        continue;
+      }
+
       scanned++;
       document.getElementById('br-scanned').textContent=scanned;
       document.getElementById('br-s-scanned').textContent=scanned;
 
       const result=analyzeBullRun(ticker,name,values);
-      brLog(`${ticker}: ${result.score}/6 bull signals · RSI ${result.rsi||'—'} · MACD ${result.cMACD||'—'} · Vol ${result.volRatio}×`,(result.score>=5?'good':result.score>=4?'warn':''));
+
+      // ── LEVEL 2: Enrich result ────────────────────
+      const vals=[...values].reverse();
+      const volProfile=calcVolumeProfile(
+        vals.map(v=>parseFloat(v.high)),
+        vals.map(v=>parseFloat(v.low)),
+        vals.map(v=>parseFloat(v.close)),
+        vals.map(v=>parseFloat(v.volume)||0)
+      );
+      result.l2={
+        dailyTrend,
+        rs:calcRelativeStrength(result.chgPct),
+        econWarning:getEconWarning(ticker),
+        volProfile,
+        vixStatus:l2VIXStatus,
+        minScore:l2MinScore
+      };
+
+      const rsStr=result.l2.rs!==null?(result.l2.rs>=0?'+':'')+result.l2.rs+'%':'—';
+      brLog(`${ticker}: ${result.score}/6 bull signals · RSI ${result.rsi||'—'} · MACD ${result.cMACD||'—'} · Vol ${result.volRatio}× · RS ${rsStr} · daily ↑`,(result.score>=5?'good':result.score>=4?'warn':''));
 
       if(result.score>=4){
         bullFound++;
@@ -3138,7 +3185,6 @@ async function brStartScan(){
         document.getElementById('br-s-strong').textContent=brResults.filter(r=>r.score>=5).length;
         document.getElementById('br-s-building').textContent=brResults.filter(r=>r.score===4).length;
         brRenderCards();
-        // Push notification if enabled
         if(pushOn&&result.score>=5){
           sendPush(`🚀 BULL RUN — ${ticker} ${result.score}/6`,`$${result.price.toFixed(2)} · RSI ${result.rsi||'—'} · MACD ${result.cMACD>0?'+':''}${result.cMACD} · Target $${result.target2.toFixed(2)}`);
         }
