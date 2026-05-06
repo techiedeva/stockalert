@@ -1224,43 +1224,43 @@ const VIX_EXTREME=35;     // warn and suggest not trading
 
 // Fetch VIX
 async function fetchVIX(){
-  const key=getKey();
-  if(!key) return null;
-  // VIX is a CBOE index — try with exchange hint first, then without
-  const attempts=[
-    {symbol:'VIX',exchange:'CBOE'},
-    {symbol:'VIX',exchange:''},
-    {symbol:'^VIX',exchange:''},   // Yahoo-style fallback
+  // VIX is not available on Twelve Data free tier — use Yahoo Finance instead
+  // Yahoo Finance provides ^VIX free with no API key required
+  const endpoints=[
+    'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d',
+    'https://query2.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d',
   ];
-  for(const attempt of attempts){
+  for(const url of endpoints){
     try{
-      const params={symbol:attempt.symbol,interval:'1day',outputsize:'1',apikey:key};
-      if(attempt.exchange) params.exchange=attempt.exchange;
-      const qs=new URLSearchParams(params).toString();
-      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
-      const data=await res.json();
-      if(data.status==='error'||data.code){
-        const msg=(data.message||'').toLowerCase();
-        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
-        if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
-        log(`VIX fetch (${attempt.symbol}${attempt.exchange?' on '+attempt.exchange:''}): ${data.message||'API error'}`,'warn');
+      const res=await fetch(url,{
+        cache:'no-store',
+        headers:{'Accept':'application/json'}
+      });
+      if(!res.ok){
+        log(`VIX Yahoo (${url.includes('query2')?'q2':'q1'}): HTTP ${res.status}`,'warn');
         continue;
       }
-      if(data.values&&data.values.length>0){
-        const v=parseFloat(data.values[0].close);
+      const data=await res.json();
+      // Yahoo Finance chart response structure
+      const result=data?.chart?.result?.[0];
+      const price=result?.meta?.regularMarketPrice
+             ?? result?.meta?.previousClose
+             ?? null;
+      if(price&&!isNaN(price)){
+        const v=parseFloat(price.toFixed(2));
         l2VIX=v;
         l2VIXStatus=v>=VIX_EXTREME?'extreme':v>=VIX_ELEVATED?'elevated':'normal';
         l2MinScore=v>=VIX_ELEVATED?6:5;
-        log(`L2 VIX: ${v.toFixed(1)} → status: ${l2VIXStatus} · min score: ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
+        const emoji=l2VIXStatus==='extreme'?'⛔':l2VIXStatus==='elevated'?'⚠':'✓';
+        log(`L2 VIX: ${v.toFixed(1)} ${emoji} ${l2VIXStatus} · min score: ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
         return v;
       }
+      log('VIX Yahoo: response OK but no price value found','warn');
     }catch(e){
-      if(e.message==='invalid_key') throw e;
-      if(e.message==='rate_limit'){log('VIX: rate limit hit — skipping, using default threshold','warn');return null;}
-      log(`VIX fetch error (${attempt.symbol}): ${e.message}`,'warn');
+      log(`VIX Yahoo fetch error: ${e.message}`,'warn');
     }
   }
-  log('VIX unavailable — using default min score 5/6. All three fetch attempts failed.','warn');
+  log('VIX unavailable (Yahoo Finance unreachable) — using default min score 5/6','warn');
   return null;
 }
 
