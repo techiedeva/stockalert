@@ -810,8 +810,8 @@ const DEFAULT_WATCHLIST=[
   {ticker:'UPRO', name:'ProShares UltraPro S&P 500 3×'},
   {ticker:'QLD',  name:'ProShares Ultra QQQ 2×'},
   {ticker:'TSLA', name:'Tesla Inc.'},
-  {ticker:'QQQ',  name:'Invesco QQQ Trust'},
-  {ticker:'SPY',  name:'SPDR S&P 500 ETF'},
+  {ticker:'QQQ',  name:'Invesco QQQ Trust',        exchange:'AMEX'},
+  {ticker:'SPY',  name:'SPDR S&P 500 ETF',          exchange:'AMEX'},
   {ticker:'AAPL', name:'Apple Inc.'},
   {ticker:'NVDA', name:'NVIDIA Corp.'},
   {ticker:'AMZN', name:'Amazon.com Inc.'},
@@ -834,7 +834,7 @@ function saveWatchlist(list){
 let SP50=loadWatchlist();
 
 const TD_BASE='https://api.twelvedata.com';
-const EXCHANGES=['NASDAQ','NYSE',''];
+const EXCHANGES=['NASDAQ','NYSE','AMEX',''];
 let scanResults=[];
 let autoTimer=null;
 let autoOn=false;
@@ -949,13 +949,15 @@ async function tdGet(ticker){
   if(abortScan) throw new Error('aborted');
   const key=getKey();
   if(!key) throw new Error('no_key');
-  for(const exchange of EXCHANGES){
+  // Try no exchange first — Twelve Data auto-resolves correctly for most tickers
+  // Fall back to specific exchanges only if needed
+  const tryList=['','NASDAQ','NYSE','AMEX'];
+  for(const exchange of tryList){
     const params={symbol:ticker,interval:'15min',outputsize:'200'};
     if(exchange) params.exchange=exchange;
     const qs=new URLSearchParams({...params,apikey:key}).toString();
-    const url=`${TD_BASE}/time_series?${qs}`;
     try{
-      const res=await fetch(url,{cache:'no-store'});
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
       const data=await res.json();
       apiCalls++;
       document.getElementById('s-calls').textContent=apiCalls;
@@ -1250,19 +1252,35 @@ async function fetchEconCalendar(){
 
 // Fetch daily bars for trend gate — returns {aboveMA50, ma50val, dailyATR}
 async function fetchDailyTrend(ticker){
-  // Check cache first — valid for this scan session
-  if(l2DailyCache[ticker]) return l2DailyCache[ticker];
+  if(l2DailyCache[ticker]){
+    log(`L2 Daily ${ticker}: cached — ${l2DailyCache[ticker].aboveMA50?'↑ above':'↓ below'} MA50 (${l2DailyCache[ticker].pctFromMA50}%)`);
+    return l2DailyCache[ticker];
+  }
   const key=getKey();
   if(!key) return null;
-  for(const exchange of EXCHANGES){
+  log(`L2 Daily trend check for ${ticker}...`);
+  for(const exchange of ['','NASDAQ','NYSE','AMEX']){
     const params={symbol:ticker,interval:'1day',outputsize:'60'};
     if(exchange) params.exchange=exchange;
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
       const data=await res.json();
-      if(data.status==='error'||data.code) continue;
-      if(!data.values||data.values.length<20) continue;
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')){
+          log(`L2 Daily ${ticker}: rate limit — pausing 15s...`,'warn');
+          await sleep(15000);
+          continue;
+        }
+        log(`L2 Daily ${ticker}: API error (${exchange||'auto'}): ${data.message}`,'warn');
+        continue;
+      }
+      if(!data.values||data.values.length<20){
+        log(`L2 Daily ${ticker}: only ${data.values?data.values.length:0} bars from ${exchange||'auto'}`,'warn');
+        continue;
+      }
       const vals=[...data.values].reverse();
       const closes=vals.map(v=>parseFloat(v.close));
       const highs=vals.map(v=>parseFloat(v.high));
@@ -1271,17 +1289,24 @@ async function fetchDailyTrend(ticker){
       const ma50=lastVal(ma50arr);
       const cp=closes[closes.length-1];
       const dailyATR=calcATR(highs,lows,closes,14);
+      const pct=ma50?parseFloat(((cp-ma50)/ma50*100).toFixed(1)):null;
       const result={
         aboveMA50:ma50!=null&&cp>ma50,
         ma50val:ma50?parseFloat(ma50.toFixed(2)):null,
         cp,
         dailyATR:parseFloat(dailyATR.toFixed(2)),
-        pctFromMA50:ma50?parseFloat(((cp-ma50)/ma50*100).toFixed(1)):null
+        pctFromMA50:pct
       };
       l2DailyCache[ticker]=result;
+      log(`L2 Daily ${ticker}: $${cp.toFixed(2)} vs MA50 $${ma50?ma50.toFixed(2):'—'} → ${result.aboveMA50?'✓ ABOVE (trend UP)':'✗ BELOW (trend DOWN)'} ${pct!==null?(pct>=0?'+':'')+pct+'%':''}`,result.aboveMA50?'good':'warn');
       return result;
-    }catch(e){ continue; }
+    }catch(e){
+      if(e.message==='invalid_key') throw e;
+      log(`L2 Daily ${ticker}: exception (${exchange||'auto'}): ${e.message}`,'warn');
+      continue;
+    }
   }
+  log(`L2 Daily ${ticker}: no daily data found — gate bypassed (allowing through)`,'warn');
   return null;
 }
 
@@ -1721,16 +1746,17 @@ function srTableCell(r){
 // ---- DATA TIMESTAMP + MARKET HOURS STATUS ----
 function buildDataTimestamp(){
   const now=new Date();
-  const etOffset=-5; // EST (adjust -4 for EDT)
-  const utc=now.getTime()+(now.getTimezoneOffset()*60000);
-  const et=new Date(utc+(3600000*etOffset));
+  // Auto-detect Eastern Time — EDT is UTC-4 (Mar-Nov), EST is UTC-5 (Nov-Mar)
+  // Use Intl API for accurate DST-aware ET time
+  const etStr=now.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
+  const etFull=now.toLocaleString('en-US',{timeZone:'America/New_York'});
+  const et=new Date(etFull);
   const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
-  const timeStr=et.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
-  const dateStr=et.toLocaleDateString('en-US',{month:'short',day:'numeric'});
   const isWeekday=d>=1&&d<=5;
   const isMarketHours=isWeekday&&(h>9||(h===9&&m>=30))&&h<16;
   const isPreMarket=isWeekday&&h>=4&&(h<9||(h===9&&m<30));
   const isAfterHours=isWeekday&&h>=16&&h<20;
+  const dateStr=now.toLocaleDateString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'});
 
   let status,color,bg,msg;
   if(isMarketHours){
@@ -1749,7 +1775,7 @@ function buildDataTimestamp(){
 
   return`<div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border-radius:5px;padding:5px 8px;margin-bottom:8px;flex-wrap:wrap;gap:4px;">
     <span style="font-family:var(--mono);font-size:10px;font-weight:600;color:${color};">${status}</span>
-    <span style="font-family:var(--mono);font-size:10px;color:${color};opacity:0.8;">${timeStr} ET</span>
+    <span style="font-family:var(--mono);font-size:10px;color:${color};opacity:0.8;">${etStr} ET</span>
     <span style="font-size:10px;color:${color};opacity:0.75;width:100%;">${msg}</span>
   </div>`;
 }
@@ -2315,7 +2341,7 @@ async function teFetch(){
     if(!key) throw new Error('no_key');
     // Try exchanges in order to get daily OHLCV
     let values=null;
-    for(const exchange of EXCHANGES){
+    for(const exchange of ['','NASDAQ','NYSE','AMEX']){
       const params={symbol:ticker,interval:'1day',outputsize:'90'};
       if(exchange) params.exchange=exchange;
       const qs=new URLSearchParams({...params,apikey:key}).toString();
@@ -2895,7 +2921,7 @@ async function brFetchBars(ticker){
   if(brAbort) throw new Error('aborted');
   const key=getKey();
   if(!key) throw new Error('no_key');
-  for(const exchange of EXCHANGES){
+  for(const exchange of ['','NASDAQ','NYSE','AMEX']){
     const params={symbol:ticker,interval:'15min',outputsize:'200'};
     if(exchange) params.exchange=exchange;
     const qs=new URLSearchParams({...params,apikey:key}).toString();
@@ -3190,7 +3216,7 @@ async function qcCheck(){
   try{
     // Try exchanges in order
     let values=null;
-    for(const exchange of EXCHANGES){
+    for(const exchange of ['','NASDAQ','NYSE','AMEX']){
       const params={symbol:ticker,interval:'15min',outputsize:'200'};
       if(exchange) params.exchange=exchange;
       const qs=new URLSearchParams({...params,apikey:key}).toString();
