@@ -282,6 +282,18 @@ tr:hover td{background:var(--surface2);}
     </div>
   </div>
 
+  <!-- L2 STATUS BAR -->
+  <div id="l2-status-bar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:6px;">⚡ Level 2 — Institutional Filters Active</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;font-family:var(--mono);font-size:13px;">
+      <span>VIX: <strong id="l2-vix-disp" style="color:var(--text);">—</strong></span>
+      <span>Min score: <strong id="l2-minscore-disp" style="color:var(--accent);">5/6</strong></span>
+      <span>QQQ today: <strong id="l2-qqq-disp" style="color:var(--text);">—</strong></span>
+      <span>Events 48h: <strong id="l2-events-disp" style="color:var(--text);">0</strong></span>
+      <span>Daily gated out: <strong id="l2-gated-disp" style="color:var(--amber);">0</strong></span>
+    </div>
+  </div>
+
   <!-- STATS -->
   <div class="stats-row">
     <div class="stat"><div class="lbl">Scanned</div><div class="val neu" id="s-scanned">—</div></div>
@@ -1179,7 +1191,203 @@ function analyzeStock(ticker,name,values){
   };
 }
 
-// ---- SCANNER ----
+// ---- LEVEL 2 — INSTITUTIONAL FILTERS ----
+let l2VIX=null;           // live VIX value fetched at scan start
+let l2VIXStatus='unknown';// 'normal' | 'elevated' | 'extreme'
+let l2EconEvents=[];      // upcoming economic events [{date,name,impact}]
+let l2QQQChange=null;     // QQQ % change today — benchmark for relative strength
+let l2MinScore=5;         // dynamic minimum score (raised when VIX elevated)
+let l2DailyCache={};      // cache daily bar data per ticker to avoid re-fetching
+
+// VIX thresholds
+const VIX_ELEVATED=25;    // raise min score to 6/6
+const VIX_EXTREME=35;     // warn and suggest not trading
+
+// Fetch VIX
+async function fetchVIX(){
+  const key=getKey();
+  if(!key) return null;
+  try{
+    // VIX on Twelve Data
+    const qs=new URLSearchParams({symbol:'VIX',interval:'1day',outputsize:'1',apikey:key}).toString();
+    const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+    const data=await res.json();
+    if(data.values&&data.values.length>0){
+      const v=parseFloat(data.values[0].close);
+      l2VIX=v;
+      l2VIXStatus=v>=VIX_EXTREME?'extreme':v>=VIX_ELEVATED?'elevated':'normal';
+      l2MinScore=v>=VIX_ELEVATED?6:5;
+      log(`L2 VIX: ${v.toFixed(1)} → ${l2VIXStatus} · min score set to ${l2MinScore}/6`,(l2VIXStatus==='normal'?'good':'warn'));
+      return v;
+    }
+  }catch(e){ log('VIX fetch failed: '+e.message,'warn'); }
+  return null;
+}
+
+// Fetch economic calendar — using Twelve Data calendar endpoint
+async function fetchEconCalendar(){
+  const key=getKey();
+  if(!key) return;
+  try{
+    const qs=new URLSearchParams({apikey:key}).toString();
+    const res=await fetch(`${TD_BASE}/economic_calendar?${qs}`,{cache:'no-store'});
+    const data=await res.json();
+    if(data.result&&Array.isArray(data.result)){
+      // Filter to high-impact events in next 48 hours
+      const now=Date.now();
+      const h48=now+48*3600*1000;
+      l2EconEvents=data.result.filter(e=>{
+        const t=new Date(e.date).getTime();
+        return t>=now-3600*1000&&t<=h48&&(e.importance==='high'||(e.event&&/FOMC|Fed|CPI|PPI|NFP|GDP|earnings/i.test(e.event)));
+      }).map(e=>({date:new Date(e.date),name:e.event,impact:e.importance}));
+      log(`L2 Calendar: ${l2EconEvents.length} high-impact event(s) in next 48hrs`,(l2EconEvents.length>0?'warn':'good'));
+    }
+  }catch(e){
+    log('Calendar fetch failed — using manual check','warn');
+    l2EconEvents=[];
+  }
+}
+
+// Fetch daily bars for trend gate — returns {aboveMA50, ma50val, dailyATR}
+async function fetchDailyTrend(ticker){
+  // Check cache first — valid for this scan session
+  if(l2DailyCache[ticker]) return l2DailyCache[ticker];
+  const key=getKey();
+  if(!key) return null;
+  for(const exchange of EXCHANGES){
+    const params={symbol:ticker,interval:'1day',outputsize:'60'};
+    if(exchange) params.exchange=exchange;
+    const qs=new URLSearchParams({...params,apikey:key}).toString();
+    try{
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      const data=await res.json();
+      if(data.status==='error'||data.code) continue;
+      if(!data.values||data.values.length<20) continue;
+      const vals=[...data.values].reverse();
+      const closes=vals.map(v=>parseFloat(v.close));
+      const highs=vals.map(v=>parseFloat(v.high));
+      const lows=vals.map(v=>parseFloat(v.low));
+      const ma50arr=calcEMA(closes,Math.min(50,closes.length));
+      const ma50=lastVal(ma50arr);
+      const cp=closes[closes.length-1];
+      const dailyATR=calcATR(highs,lows,closes,14);
+      const result={
+        aboveMA50:ma50!=null&&cp>ma50,
+        ma50val:ma50?parseFloat(ma50.toFixed(2)):null,
+        cp,
+        dailyATR:parseFloat(dailyATR.toFixed(2)),
+        pctFromMA50:ma50?parseFloat(((cp-ma50)/ma50*100).toFixed(1)):null
+      };
+      l2DailyCache[ticker]=result;
+      return result;
+    }catch(e){ continue; }
+  }
+  return null;
+}
+
+// Calculate relative strength vs QQQ
+function calcRelativeStrength(tickerChgPct){
+  if(l2QQQChange===null) return null;
+  const rs=parseFloat((tickerChgPct-l2QQQChange).toFixed(2));
+  return rs; // positive = outperforming QQQ
+}
+
+// Check if ticker has upcoming econ event
+function getEconWarning(ticker){
+  // Check earnings-specific ticker events
+  const tickerEvents=l2EconEvents.filter(e=>
+    e.name&&(e.name.toUpperCase().includes(ticker)||/FOMC|Fed Rate|CPI|PPI|NFP/i.test(e.name))
+  );
+  if(tickerEvents.length===0) return null;
+  const next=tickerEvents[0];
+  const hoursAway=Math.round((next.date-Date.now())/3600000);
+  return{name:next.name,hoursAway,impact:next.impact};
+}
+
+// Build VIX status banner for cards
+function buildVIXBanner(){
+  if(!l2VIX) return '';
+  if(l2VIXStatus==='normal') return '';
+  const color=l2VIXStatus==='extreme'?'var(--red)':'var(--amber)';
+  const bg=l2VIXStatus==='extreme'?'var(--red-bg)':'var(--amber-bg)';
+  const msg=l2VIXStatus==='extreme'
+    ?`⛔ VIX ${l2VIX.toFixed(1)} — EXTREME FEAR. Consider staying out entirely.`
+    :`⚠ VIX ${l2VIX.toFixed(1)} — ELEVATED FEAR. Only trade 6/6 setups. Reduce size by 50%.`;
+  return`<div style="background:${bg};border-radius:5px;padding:5px 8px;margin-bottom:6px;font-family:var(--mono);font-size:10px;font-weight:600;color:${color};">${msg}</div>`;
+}
+
+// Build econ warning for cards
+function buildEconWarning(ticker){
+  const w=getEconWarning(ticker);
+  if(!w) return '';
+  return`<div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:5px;padding:5px 8px;margin-bottom:6px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--red);">
+    ⛔ CAUTION: ${w.name} in ~${w.hoursAway}h · High-impact event · Signals unreliable near events
+  </div>`;
+}
+
+// Build relative strength badge
+function buildRSBadge(rs){
+  if(rs===null) return '';
+  const color=rs>=1?'var(--green)':rs>=-1?'var(--amber)':'var(--red)';
+  const label=rs>=1?'Outperforming QQQ':rs>=-1?'In-line with QQQ':'Underperforming QQQ';
+  const sign=rs>=0?'+':'';
+  return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${color}20;border:1px solid ${color}40;color:${color};margin-left:4px;" title="Relative strength vs QQQ">RS ${sign}${rs}%: ${label}</span>`;
+}
+
+// Build daily trend gate badge
+function buildTrendBadge(dailyTrend){
+  if(!dailyTrend) return '';
+  const color=dailyTrend.aboveMA50?'var(--green)':'var(--red)';
+  const label=dailyTrend.aboveMA50
+    ?`Daily ↑ Above MA50 (+${dailyTrend.pctFromMA50}%)`
+    :`Daily ↓ Below MA50 (${dailyTrend.pctFromMA50}%)`;
+  return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${color}20;border:1px solid ${color}40;color:${color};" title="Daily chart trend vs 50-day MA">${label}</span>`;
+}
+
+// Approximate Volume Profile — finds high-volume price nodes from 200 bars
+function calcVolumeProfile(highs,lows,closes,volumes){
+  if(!volumes||volumes.length<20) return{poc:null,vah:null,val:null};
+  const cp=closes[closes.length-1];
+  const pRange=Math.max(...highs)-Math.min(...lows);
+  if(pRange<=0) return{poc:null,vah:null,val:null};
+
+  // Create 20 price buckets
+  const buckets=20;
+  const minP=Math.min(...lows);
+  const bucketSize=pRange/buckets;
+  const vol=new Array(buckets).fill(0);
+  const price=new Array(buckets).fill(0);
+
+  for(let i=0;i<closes.length;i++){
+    const mid=(highs[i]+lows[i])/2;
+    const b=Math.min(buckets-1,Math.floor((mid-minP)/bucketSize));
+    vol[b]+=volumes[i]||0;
+    price[b]=minP+(b+0.5)*bucketSize;
+  }
+
+  // POC = price of control (highest volume bucket)
+  const maxVol=Math.max(...vol);
+  const pocIdx=vol.indexOf(maxVol);
+  const poc=parseFloat(price[pocIdx].toFixed(2));
+
+  // VAH/VAL — value area (70% of total volume)
+  const totalVol=vol.reduce((a,b)=>a+b,0);
+  const target=totalVol*0.7;
+  let cumVol=maxVol;
+  let lo=pocIdx,hi=pocIdx;
+  while(cumVol<target&&(lo>0||hi<buckets-1)){
+    const expandLo=lo>0?vol[lo-1]:0;
+    const expandHi=hi<buckets-1?vol[hi+1]:0;
+    if(expandLo>=expandHi&&lo>0){cumVol+=expandLo;lo--;}
+    else if(hi<buckets-1){cumVol+=expandHi;hi++;}
+    else break;
+  }
+  const vah=parseFloat(price[hi].toFixed(2));
+  const val=parseFloat(price[lo].toFixed(2));
+
+  return{poc,vah,val,abovePOC:cp>poc,aboveVAH:cp>vah,belowVAL:cp<val};
+}
+
 async function startScan(){
   const key=getKey();
   if(!key){alert('Paste your Twelve Data API key first.');return;}
@@ -1189,8 +1397,8 @@ async function startScan(){
   abortScan=false;
   scanResults=[];
   apiCalls=0;
-  smsAlertedThisScan={}; // reset per-scan dedup trackers
-  waAlertedThisScan={};
+  l2DailyCache={};
+  l2VIX=null;l2VIXStatus='unknown';l2EconEvents=[];l2QQQChange=null;l2MinScore=5;
   pushAlertedThisScan={};
   const scanStart=Date.now();
 
@@ -1201,32 +1409,70 @@ async function startScan(){
   setStatus('scanning','Scanning...');
   setProgress(0);
   clearUI();
-
   document.getElementById('empty-state').style.display='none';
-  log('Starting scan of '+SP50.length+' tickers: '+SP50.map(s=>s.ticker).join(', ')+'...');
 
-  const BATCH_SIZE=3; // only 3 tickers — no rate limit concern
+  // ── LEVEL 2 PRE-SCAN ─────────────────────────────
+  log('L2: Fetching VIX, calendar, QQQ benchmark...','good');
+  await fetchVIX();
+  await fetchEconCalendar();
+  try{
+    const qqqVals=await tdGet('QQQ');
+    if(qqqVals){
+      const v=[...qqqVals].reverse();
+      const closes=v.map(x=>parseFloat(x.close));
+      const n=closes.length;
+      l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
+      log(`L2 QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · VIX: ${l2VIX?l2VIX.toFixed(1):'—'} · Min score: ${l2MinScore}/6`,'good');
+    }
+  }catch(e){ log('QQQ benchmark failed: '+e.message,'warn'); }
+
+  log('Starting scan of '+SP50.length+' tickers: '+SP50.map(s=>s.ticker).join(', ')+'...');
 
   for(let i=0;i<SP50.length;i++){
     if(abortScan){ log('Scan stopped by user.','warn'); break; }
-
     const {ticker,name}=SP50[i];
     const pct=Math.round(((i+1)/SP50.length)*100);
     setProgress(pct);
     setStatus('scanning',`Scanning ${ticker} (${i+1}/${SP50.length})`);
-
     try{
       log('Fetching '+ticker+'...');
       const values=await tdGet(ticker);
-      if(!values){log(ticker+' — no data from any exchange','warn');continue;}
+      if(!values){log(ticker+' — no data','warn');continue;}
+
+      // ── LEVEL 2: Daily trend gate ─────────────────
+      const dailyTrend=await fetchDailyTrend(ticker);
+      if(dailyTrend&&!dailyTrend.aboveMA50){
+        log(`${ticker}: GATED — daily trend bearish (${dailyTrend.pctFromMA50}% below 50-day MA). Filtered out.`,'warn');
+        continue;
+      }
+
       const result=analyzeStock(ticker,name,values);
+
+      // ── LEVEL 2: Enrich result ────────────────────
+      const vals=[...values].reverse();
+      const volProfile=calcVolumeProfile(
+        vals.map(v=>parseFloat(v.high)),
+        vals.map(v=>parseFloat(v.low)),
+        vals.map(v=>parseFloat(v.close)),
+        vals.map(v=>parseFloat(v.volume)||0)
+      );
+      result.l2={
+        dailyTrend,
+        rs:calcRelativeStrength(result.chgPct),
+        econWarning:getEconWarning(ticker),
+        volProfile,
+        vixStatus:l2VIXStatus,
+        minScore:l2MinScore
+      };
+
       scanResults.push(result);
-      log(`${ticker}: score ${result.score}/6 · RSI ${result.rsi||'—'} · pullback ${result.pullbackPct}%`,(result.score>=5?'good':result.score>=3?'warn':''));
+      const rsStr=result.l2.rs!==null?(result.l2.rs>=0?'+':'')+result.l2.rs+'%':'—';
+      log(`${ticker}: ${result.score}/6 · RSI ${result.rsi||'—'} · RS ${rsStr} vs QQQ · daily ${dailyTrend?'↑ OK':'?'}`,(result.score>=l2MinScore?'good':result.score>=3?'warn':''));
       await maybeSendSMSForResult(result);
       renderResults();
     }catch(e){
-      if(e.message==='invalid_key'){ log('Invalid API key — stopping scan.','err'); abortScan=true; break; }
-      if(e.message==='rate_limit'){ log('Rate limit hit — pausing 15s...','warn'); await sleep(15000); i--; continue; }
+      if(e.message==='invalid_key'){log('Invalid API key.','err');abortScan=true;break;}
+      if(e.message==='rate_limit'){log('Rate limit — pausing 15s...','warn');await sleep(15000);i--;continue;}
       if(e.message==='aborted') break;
       log(ticker+' error: '+e.message,'warn');
     }
@@ -1239,11 +1485,13 @@ async function startScan(){
   document.getElementById('last-scan-pill').style.display='flex';
   document.getElementById('last-scan-text').textContent='Last scan: '+new Date().toLocaleTimeString();
   document.getElementById('s-time').textContent=elapsed+'m';
-  log('Scan complete. '+scanResults.length+' stocks processed. '+scanResults.filter(r=>r.score>=5).length+' launch alerts.','good');
+  const passed=scanResults.filter(r=>r.score>=l2MinScore).length;
+  log(`Scan complete. ${scanResults.length} passed trend gate. ${passed} launch alerts at ${l2MinScore}/6 threshold.`,'good');
 
   btn.disabled=false;btn.textContent='▶ Run scan';
   btn.onclick=startScan;
 }
+
 
 function clearUI(){
   document.getElementById('alert-cards').innerHTML='';
@@ -1267,8 +1515,30 @@ function clearResults(){
 }
 
 function renderResults(){
-  const launches=scanResults.filter(r=>r.score>=5).sort((a,b)=>b.score-a.score||a.rsi-b.rsi);
-  const watches=scanResults.filter(r=>r.score>=3&&r.score<5);
+  const launches=scanResults.filter(r=>r.score>=l2MinScore).sort((a,b)=>b.score-a.score||a.rsi-b.rsi);
+  const watches=scanResults.filter(r=>r.score>=3&&r.score<l2MinScore);
+  const gated=SP50.length-scanResults.length;
+
+  // Update L2 status bar
+  if(l2VIX!==null||l2QQQChange!==null){
+    document.getElementById('l2-status-bar').style.display='block';
+    const vixEl=document.getElementById('l2-vix-disp');
+    if(l2VIX){
+      vixEl.textContent=l2VIX.toFixed(1);
+      vixEl.style.color=l2VIXStatus==='extreme'?'var(--red)':l2VIXStatus==='elevated'?'var(--amber)':'var(--green)';
+    }
+    const msEl=document.getElementById('l2-minscore-disp');
+    msEl.textContent=l2MinScore+'/6';
+    msEl.style.color=l2MinScore>=6?'var(--amber)':'var(--accent)';
+    const qqqEl=document.getElementById('l2-qqq-disp');
+    if(l2QQQChange!==null){
+      qqqEl.textContent=(l2QQQChange>=0?'+':'')+l2QQQChange+'%';
+      qqqEl.style.color=l2QQQChange>=0?'var(--green)':'var(--red)';
+    }
+    document.getElementById('l2-events-disp').textContent=l2EconEvents.length;
+    document.getElementById('l2-events-disp').style.color=l2EconEvents.length>0?'var(--amber)':'var(--text)';
+    document.getElementById('l2-gated-disp').textContent=gated;
+  }
   const all=[...scanResults].sort((a,b)=>{
     if(sortCol==='ticker')return sortAsc?a.ticker.localeCompare(b.ticker):b.ticker.localeCompare(a.ticker);
     if(sortCol==='name')return sortAsc?a.name.localeCompare(b.name):b.name.localeCompare(a.name);
@@ -1298,6 +1568,12 @@ function renderResults(){
         <div class="ticker">${r.ticker}</div>
         <div class="name">${r.name}</div>
         ${buildDataTimestamp()}
+        ${r.l2?buildVIXBanner():''}
+        ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+          ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
+          ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+        </div>
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
           <div class="change ${chgClass}">${chgStr}</div>
@@ -1414,9 +1690,21 @@ function buildSRPanel(r){
     <span style="font-family:var(--mono);font-size:11px;color:var(--accent);">▶ NOW</span>
   </div>`;
 
+  const pocRow=r.l2&&r.l2.volProfile&&r.l2.volProfile.poc?`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="width:3px;height:14px;background:var(--blue);border-radius:2px;"></div>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);">POC</span>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--blue);">$${r.l2.volProfile.poc.toFixed(2)}</span>
+        <span style="font-size:10px;color:var(--blue);">Highest volume price level</span>
+      </div>
+      <span style="font-size:10px;color:var(--blue);">${r.l2.volProfile.abovePOC?'▲ above':'▼ below'}</span>
+    </div>`:'';
+
   return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;">
-    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Support &amp; Resistance</div>
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Support &amp; Resistance${r.l2&&r.l2.volProfile&&r.l2.volProfile.poc?' · Vol Profile':''}  </div>
     ${resRows}
+    ${pocRow}
     ${currentRow}
     ${supRows}
   </div>`;
@@ -2439,6 +2727,9 @@ function exRenderAlerts(){
       <div class="ticker">${r.ticker}</div>
       <div class="name">${r.name}</div>
       ${buildDataTimestamp()}
+      ${r.l2?buildVIXBanner():''}
+      ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
