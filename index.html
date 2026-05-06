@@ -192,8 +192,8 @@ tr:hover td{background:var(--surface2);}
     </div>
   </div>
   <div class="tab-nav">
-    <button class="tab-btn" onclick="switchTab('bullrun',this)" title="Find stocks showing early bull run characteristics — momentum building, trend confirmed">🚀 Bull Run <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Rising momentum</span></button>
-    <button class="tab-btn active" onclick="switchTab('scanner',this)" title="Find falling stocks ready to reverse and bounce back up">📉 Reversal <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Catch the bounce</span></button>
+    <button class="tab-btn active" onclick="switchTab('bullrun',this)" title="Find stocks showing early bull run characteristics — momentum building, trend confirmed">🚀 Bull Run <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Rising momentum</span></button>
+    <button class="tab-btn" onclick="switchTab('scanner',this)" title="Find falling stocks ready to reverse and bounce back up">📉 Reversal <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Catch the bounce</span></button>
     <button class="tab-btn" onclick="switchTab('exchange',this)" title="Scan NASDAQ+NYSE stocks under $50 for launch alerts">🔍 Exchange <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Discover alerts</span></button>
     <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
   </div>
@@ -258,7 +258,7 @@ tr:hover td{background:var(--surface2);}
 
 <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
 
-<div id="tab-scanner" class="tab-page active">
+<div id="tab-scanner" class="tab-page">
 <div class="container">
 
   <div class="key-prompt" id="key-prompt">
@@ -631,7 +631,7 @@ tr:hover td{background:var(--surface2);}
 </div><!-- end tab-exchange -->
 
 <!-- ===== BULL RUN SCANNER TAB ===== -->
-<div id="tab-bullrun" class="tab-page">
+<div id="tab-bullrun" class="tab-page active">
 <div class="container">
 
   <!-- ⚡ QUICK CHECK PANEL -->
@@ -3511,6 +3511,11 @@ function qcLogTrade(){
 // On load: sync push button state if permission already granted
 updatePushBtn();
 updateEmptyState();
+// Ensure scan/auto/clear buttons hidden — Bull Run is default tab, not Reversal
+['scan-btn','auto-btn','auto-label','clear-btn'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.style.display='none';
+});
 </script>
 </body>
 </html>
