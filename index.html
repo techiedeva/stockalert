@@ -1110,6 +1110,187 @@ function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
   };
 }
 
+// ── MULTI-TIMEFRAME FETCH ─────────────────────────────────────────────────
+// Fetch 1-hour bars for MTF confirmation. Cached per scan session.
+const mtfCache={};
+
+async function fetchMTF(ticker, logFn){
+  const _log=logFn||log;
+  if(mtfCache[ticker]) return mtfCache[ticker];
+  const key=getKey();
+  if(!key) return null;
+  for(const exchange of ['','NASDAQ','NYSE','AMEX']){
+    const params={symbol:ticker,interval:'1h',outputsize:'50'};
+    if(exchange) params.exchange=exchange;
+    const qs=new URLSearchParams({...params,apikey:key}).toString();
+    try{
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      const data=await res.json();
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')){
+          _log(`MTF ${ticker}: rate limit — skipping`,'warn');
+          return null;
+        }
+        continue;
+      }
+      if(data.values&&data.values.length>=10){
+        const vals=[...data.values].reverse();
+        const closes=vals.map(v=>parseFloat(v.close));
+        const ma20arr=calcEMA(closes,20);
+        const ma50arr=calcEMA(closes,Math.min(50,closes.length));
+        const rsiArr=calcRSI(closes,14);
+        const cp=closes[closes.length-1];
+        const cMA20=lastVal(ma20arr);
+        const cMA50=lastVal(ma50arr);
+        const cRSI=lastVal(rsiArr);
+        const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
+        const macdLine=closes.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
+        const cMACD=lastVal(macdLine);
+        const result={
+          aboveMA20:cMA20!=null&&cp>cMA20,
+          aboveMA50:cMA50!=null&&cp>cMA50,
+          macdPositive:cMACD!=null&&cMACD>0,
+          rsi:cRSI?parseFloat(cRSI.toFixed(1)):null,
+          rsiHealthy:cRSI!=null&&cRSI>=45&&cRSI<=75,
+          price:cp,
+          ma20:cMA20?parseFloat(cMA20.toFixed(2)):null,
+          ma50:cMA50?parseFloat(cMA50.toFixed(2)):null,
+          macd:cMACD?parseFloat(cMACD.toFixed(3)):null,
+        };
+        // 1H confirmation: needs at least 2 of 3 (MA20, MA50, MACD positive)
+        const score=[result.aboveMA20,result.aboveMA50,result.macdPositive].filter(Boolean).length;
+        result.confirmed=score>=2;
+        result.score=score;
+        mtfCache[ticker]=result;
+        _log(`MTF 1H ${ticker}: MA20=${result.aboveMA20?'✓':'✗'} MA50=${result.aboveMA50?'✓':'✗'} MACD=${result.macdPositive?'✓':'✗'} → ${result.confirmed?'CONFIRMED':'CONFLICT'}`,(result.confirmed?'good':'warn'));
+        return result;
+      }
+    }catch(e){
+      if(e.message==='invalid_key') throw e;
+    }
+  }
+  return null;
+}
+// VWAP = cumulative(price × volume) / cumulative(volume)
+// Uses typical price (H+L+C)/3 per bar
+function calcVWAP(highs,lows,closes,volumes){
+  let cumPV=0, cumV=0;
+  const vwapArr=closes.map((_,i)=>{
+    const tp=(highs[i]+lows[i]+closes[i])/3;
+    const v=volumes[i]||0;
+    cumPV+=tp*v; cumV+=v;
+    return cumV>0?cumPV/cumV:null;
+  });
+  return{
+    vwap:lastVal(vwapArr)?parseFloat(lastVal(vwapArr).toFixed(2)):null,
+    aboveVWAP:lastVal(vwapArr)!=null&&closes[closes.length-1]>lastVal(vwapArr),
+    vwapArr
+  };
+}
+
+// ── ENTRY ZONE CALCULATOR ────────────────────────────────────────────────
+// Returns optimal entry techniques based on current price vs S&R and VWAP
+function calcEntryZone(cp, sr, atr, vwap){
+  const techniques=[];
+  const r1=sr&&sr.resistance&&sr.resistance[0]?sr.resistance[0].price:null;
+  const s1=sr&&sr.support&&sr.support[0]?sr.support[0].price:null;
+  const s2=sr&&sr.support&&sr.support[1]?sr.support[1].price:null;
+
+  // Distance from current price to S1 as %
+  const s1Dist=s1?parseFloat(((cp-s1)/cp*100).toFixed(1)):null;
+  const r1Dist=r1?parseFloat(((r1-cp)/cp*100).toFixed(1)):null;
+
+  // Max chase — never enter more than 2% above current price
+  const maxChase=parseFloat((cp*1.02).toFixed(2));
+
+  // Do NOT enter above R1 (resistance is overhead ceiling)
+  const doNotEnterAbove=r1?parseFloat((r1*0.998).toFixed(2)):maxChase;
+
+  // Technique 1: S1 Pullback (best if S1 is within 3% below)
+  if(s1&&s1Dist<=3&&s1Dist>0){
+    const stopS1=parseFloat((s1-atr*0.5).toFixed(2));
+    const rewardS1=r1?r1-s1:atr*2;
+    const riskS1=s1-stopS1;
+    const rrS1=riskS1>0?parseFloat((rewardS1/riskS1).toFixed(1)):0;
+    techniques.push({
+      name:'S1 Pullback',
+      entry:s1,
+      entryHigh:parseFloat((s1*1.005).toFixed(2)),
+      stop:stopS1,
+      quality:rrS1>=3?'best':rrS1>=2?'good':'fair',
+      stars:rrS1>=3?3:rrS1>=2?2:1,
+      rr:rrS1,
+      note:`Wait for price to dip to $${s1} then buy. Stop just below S1.`
+    });
+  }
+
+  // Technique 2: VWAP Pullback (if price pulled back to VWAP zone)
+  if(vwap&&Math.abs(cp-vwap)/cp<0.015){
+    const stopVWAP=parseFloat((vwap-atr*0.6).toFixed(2));
+    const rewardVWAP=r1?r1-vwap:atr*2;
+    const riskVWAP=vwap-stopVWAP;
+    const rrVWAP=riskVWAP>0?parseFloat((rewardVWAP/riskVWAP).toFixed(1)):0;
+    techniques.push({
+      name:'VWAP Entry',
+      entry:vwap,
+      entryHigh:parseFloat((vwap*1.005).toFixed(2)),
+      stop:stopVWAP,
+      quality:rrVWAP>=2?'good':'fair',
+      stars:rrVWAP>=2?2:1,
+      rr:rrVWAP,
+      note:`Price near VWAP ($${vwap}). Institutions use this as fair value.`
+    });
+  }
+
+  // Technique 3: Candle confirmation (current price, wait for next candle close)
+  const stopNow=parseFloat((cp-atr*1.5).toFixed(2));
+  const rewardNow=r1?r1-cp:atr*2;
+  const riskNow=cp-stopNow;
+  const rrNow=riskNow>0?parseFloat((rewardNow/riskNow).toFixed(1)):0;
+  techniques.push({
+    name:'Candle Confirm',
+    entry:cp,
+    entryHigh:parseFloat((cp*1.01).toFixed(2)),
+    stop:stopNow,
+    quality:rrNow>=2?'good':'fair',
+    stars:rrNow>=2?2:1,
+    rr:rrNow,
+    note:`Wait for current 15-min candle to close green, then buy at open of next candle.`
+  });
+
+  // Price position relative to optimal entry
+  let priceStatus, statusColor;
+  if(s1&&cp<=s1*1.005){
+    priceStatus='✓ Price at S1 — optimal entry now';
+    statusColor='var(--green)';
+  } else if(vwap&&Math.abs(cp-vwap)/cp<0.008){
+    priceStatus='✓ Price at VWAP — good entry';
+    statusColor='var(--green)';
+  } else if(r1&&cp>=doNotEnterAbove){
+    priceStatus='✗ Price near R1 — do NOT enter here';
+    statusColor='var(--red)';
+  } else if(s1&&s1Dist<=3){
+    priceStatus='⚡ Wait for S1 pullback to $'+s1+' for best entry';
+    statusColor='var(--amber)';
+  } else {
+    priceStatus='⚡ Use candle confirmation — wait for green close';
+    statusColor='var(--amber)';
+  }
+
+  return{
+    techniques,
+    s1,s2,r1,
+    s1Dist,r1Dist,
+    maxChase,
+    doNotEnterAbove,
+    priceStatus,
+    statusColor,
+    vwap
+  };
+}
+
 function analyzeStock(ticker,name,values){
   // Values from TD are newest-first — reverse
   const vals=[...values].reverse();
@@ -1156,6 +1337,8 @@ function analyzeStock(ticker,name,values){
   const pullbackPct=(recentHigh-cp)/recentHigh*100;
   const atr=calcATR(highs,lows,closes,14);
   const sr=calcSupportResistance(highs,lows,closes,bbUp,bbLo,3);
+  const {vwap,aboveVWAP}=calcVWAP(highs,lows,closes,volumes);
+  const entryZone=calcEntryZone(cp,sr,atr,vwap);
 
   // STRICT SIGNAL SCORING (5-6 required)
   // Signal 1: RSI deeply oversold < 30
@@ -1190,7 +1373,7 @@ function analyzeStock(ticker,name,values){
     atr:parseFloat(atr.toFixed(3)),
     stopLoss,target2,
     riskPerShare:parseFloat(riskPerShare.toFixed(2)),
-    sr,
+    sr, vwap, aboveVWAP, entryZone,
   };
 }
 
@@ -1465,6 +1648,7 @@ async function startScan(){
   scanResults=[];
   apiCalls=0;
   l2DailyCache={};
+  Object.keys(mtfCache).forEach(k=>delete mtfCache[k]);
   l2VIX=null;l2VIXStatus='unknown';l2EconEvents=[];l2QQQChange=null;l2MinScore=5;
   pushAlertedThisScan={};
   const scanStart=Date.now();
@@ -1521,6 +1705,13 @@ async function startScan(){
 
       const result=analyzeStock(ticker,name,values);
 
+      // ── MTF: 1-hour confirmation gate ─────────────
+      const mtf=await fetchMTF(ticker, log);
+      if(mtf&&!mtf.confirmed){
+        log(`${ticker}: MTF BLOCK — 1H conflicts with 15-min (1H score ${mtf.score}/3). Filtered out.`,'warn');
+        continue;
+      }
+
       // ── LEVEL 2: Enrich result ────────────────────
       const vals=[...values].reverse();
       const volProfile=calcVolumeProfile(
@@ -1535,12 +1726,14 @@ async function startScan(){
         econWarning:getEconWarning(ticker),
         volProfile,
         vixStatus:l2VIXStatus,
-        minScore:l2MinScore
+        minScore:l2MinScore,
+        mtf
       };
 
       scanResults.push(result);
       const rsStr=result.l2.rs!==null?(result.l2.rs>=0?'+':'')+result.l2.rs+'%':'—';
-      log(`${ticker}: ${result.score}/6 · RSI ${result.rsi||'—'} · RS ${rsStr} vs QQQ · daily ${dailyTrend?'↑ OK':'?'}`,(result.score>=l2MinScore?'good':result.score>=3?'warn':''));
+      const mtfStr=mtf?(mtf.confirmed?'1H✓':'1H✗'):'1H?';
+      log(`${ticker}: ${result.score}/6 · RSI ${result.rsi||'—'} · RS ${rsStr} · ${mtfStr} · daily ${dailyTrend?'↑':'?'}`,(result.score>=l2MinScore?'good':result.score>=3?'warn':''));
       await maybeSendSMSForResult(result);
       renderResults();
     }catch(e){
@@ -1646,6 +1839,7 @@ function renderResults(){
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
           ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
           ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+          ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
         </div>
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
@@ -1662,6 +1856,7 @@ function renderResults(){
         <div class="signals">${dotsHtml}</div>
         ${buildIndicatorPanel(r)}
         ${buildSRPanel(r)}
+        ${buildEntryZonePanel(r)}
         <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
       </div>`;
     });
@@ -1726,7 +1921,62 @@ function toggleIndicatorRow(id){
 }
 
 
-// ---- SUPPORT & RESISTANCE PANEL ----
+// ── MTF BADGE ─────────────────────────────────────────────────────────────
+function buildMTFBadge(mtf){
+  if(!mtf) return '<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);">1H: N/A</span>';
+  const color=mtf.confirmed?'var(--green)':'var(--amber)';
+  const bg=mtf.confirmed?'var(--green-bg)':'var(--amber-bg)';
+  const border=mtf.confirmed?'var(--green-border)':'var(--amber-border)';
+  const label=mtf.confirmed?`1H ✓ Confirmed (${mtf.score}/3)`:`1H ⚠ Weak (${mtf.score}/3)`;
+  return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${bg};border:1px solid ${border};color:${color};" title="1-hour chart: MA20=${mtf.aboveMA20?'✓':'✗'} MA50=${mtf.aboveMA50?'✓':'✗'} MACD=${mtf.macdPositive?'✓':'✗'}">${label}</span>`;
+}
+
+// ── ENTRY ZONE PANEL ──────────────────────────────────────────────────────
+function buildEntryZonePanel(r){
+  if(!r.entryZone) return '';
+  const ez=r.entryZone;
+  const statusBg=ez.statusColor==='var(--green)'?'var(--green-bg)':ez.statusColor==='var(--red)'?'var(--red-bg)':'var(--amber-bg)';
+  const statusBorder=ez.statusColor==='var(--green)'?'var(--green-border)':ez.statusColor==='var(--red)'?'var(--red-border)':'var(--amber-border)';
+
+  // Status bar
+  const statusBar=`<div style="background:${statusBg};border:1px solid ${statusBorder};border-radius:6px;padding:7px 10px;margin-bottom:8px;font-family:var(--mono);font-size:12px;font-weight:600;color:${ez.statusColor};">
+    ${ez.priceStatus}
+  </div>`;
+
+  // Technique rows
+  const stars=(n)=>'★'.repeat(n)+'☆'.repeat(3-n);
+  const techRows=ez.techniques.map(t=>{
+    const qColor=t.quality==='best'?'var(--green)':t.quality==='good'?'var(--amber)':'var(--text3)';
+    const isOptimal=Math.abs(r.price-t.entry)/r.price<0.005;
+    const rowBg=isOptimal?'var(--green-bg)':'transparent';
+    return`<div style="display:grid;grid-template-columns:130px 80px 80px 80px 1fr;gap:6px;align-items:center;padding:5px 4px;border-radius:4px;background:${rowBg};border-bottom:1px solid var(--border);">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:${qColor};">${t.name}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--green);">$${t.entry.toFixed(2)}–$${t.entryHigh.toFixed(2)}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--red);">SL $${t.stop.toFixed(2)}</span>
+      <span style="font-size:10px;color:${qColor};">${stars(t.stars)} R:R ${t.rr}:1</span>
+      <span style="font-size:10px;color:var(--text3);font-style:italic;">${t.note}</span>
+    </div>`;
+  }).join('');
+
+  // Do not enter above
+  const dangerRow=ez.doNotEnterAbove?`<div style="margin-top:8px;padding:5px 8px;background:var(--red-bg);border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">
+    ✗ Do NOT enter above $${ez.doNotEnterAbove.toFixed(2)} ${ez.r1?'(R1 resistance — ceiling overhead)':'(max chase price)'}
+  </div>`:'';
+
+  return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">⚡ Optimal Entry Zone</div>
+    ${statusBar}
+    <div style="display:grid;grid-template-columns:130px 80px 80px 80px 1fr;gap:6px;padding:4px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Technique</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Entry range</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Stop</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Quality</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">When to use</span>
+    </div>
+    ${techRows}
+    ${dangerRow}
+  </div>`;
+}
 function buildSRPanel(r){
   if(!r.sr) return '';
   const cp=r.price;
@@ -1774,10 +2024,23 @@ function buildSRPanel(r){
       <span style="font-size:10px;color:var(--blue);">${r.l2.volProfile.abovePOC?'▲ above':'▼ below'}</span>
     </div>`:'';
 
+  // VWAP row — institutional fair value
+  const vwapRow=r.vwap?`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="width:3px;height:14px;background:#9B59B6;border-radius:2px;"></div>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);">VWAP</span>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:#9B59B6;">$${r.vwap.toFixed(2)}</span>
+        <span style="font-size:10px;color:#9B59B6;">Institutional fair value</span>
+      </div>
+      <span style="font-size:10px;color:${r.aboveVWAP?'var(--green)':'var(--red)'};">${r.aboveVWAP?'▲ above — bullish':'▼ below — bearish'}</span>
+    </div>`:'';
+
   return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;">
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Support &amp; Resistance${r.l2&&r.l2.volProfile&&r.l2.volProfile.poc?' · Vol Profile':''}  </div>
     ${resRows}
     ${pocRow}
+    ${vwapRow}
     ${currentRow}
     ${supRows}
   </div>`;
@@ -2817,6 +3080,7 @@ function exRenderAlerts(){
       <div class="signals">${dotsHtml}</div>
       ${buildIndicatorPanel(r)}
       ${buildSRPanel(r)}
+      ${buildEntryZonePanel(r)}
       <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
     </div>`;
   });
@@ -2932,6 +3196,9 @@ function analyzeBullRun(ticker, name, values){
   const stopLoss=parseFloat((cp-1.5*atr).toFixed(2));
   const riskPerShare=cp-stopLoss;
   const target2=parseFloat((cp+riskPerShare*2).toFixed(2));
+  const sr=calcSupportResistance(highs,lows,closes,bbUp,bbLo,3);
+  const {vwap,aboveVWAP}=calcVWAP(highs,lows,closes,volumes);
+  const entryZone=calcEntryZone(cp,sr,atr,vwap);
 
   // ---- 6 BULL RUN SIGNALS ----
   // S1: RSI in 50-65 zone (rising momentum, not overbought)
@@ -2949,7 +3216,6 @@ function analyzeBullRun(ticker, name, values){
 
   const signals=[s1,s2,s3,s4,s5,s6];
   const score=signals.filter(Boolean).length;
-  const sr=calcSupportResistance(highs,lows,closes,bbUp,bbLo,3);
 
   return{
     ticker,name,price:cp,chgPct,
@@ -2959,7 +3225,7 @@ function analyzeBullRun(ticker, name, values){
     bbSqueeze,atr:parseFloat(atr.toFixed(3)),
     stopLoss,target2,riskPerShare:parseFloat(riskPerShare.toFixed(2)),
     cMACD:cMACD!=null?parseFloat(cMACD.toFixed(3)):null,
-    sr,
+    sr, vwap, aboveVWAP, entryZone,
   };
 }
 
@@ -3022,6 +3288,7 @@ function brRenderCards(){
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
         ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
         ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+        ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
       </div>
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
@@ -3220,13 +3487,22 @@ async function brStartScan(){
         vals.map(v=>parseFloat(v.close)),
         vals.map(v=>parseFloat(v.volume)||0)
       );
+
+      // ── MTF: 1-hour confirmation gate ─────────────
+      const mtf=await fetchMTF(ticker, brLog);
+      if(mtf&&!mtf.confirmed){
+        brLog(`${ticker}: MTF BLOCK — 1H conflicts with 15-min (1H score ${mtf.score}/3). Filtered out.`,'warn');
+        continue;
+      }
+
       result.l2={
         dailyTrend,
         rs:calcRelativeStrength(result.chgPct),
         econWarning:getEconWarning(ticker),
         volProfile,
         vixStatus:l2VIXStatus,
-        minScore:l2MinScore
+        minScore:l2MinScore,
+        mtf
       };
 
       const rsStr=result.l2.rs!==null?(result.l2.rs>=0?'+':'')+result.l2.rs+'%':'—';
