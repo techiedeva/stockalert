@@ -635,53 +635,56 @@ tr:hover td{background:var(--surface2);}
 <div class="container">
 
   <!-- ⚡ QUICK CHECK PANEL -->
-  <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:16px 18px;margin-bottom:16px;">
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px;">⚡ Quick Bull Run Check — any symbol</div>
+  <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:14px;margin-bottom:16px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:10px;">⚡ Quick Bull Run Check — any symbol</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-      <input type="text" id="qc-ticker" placeholder="e.g. MSFT, AMD, IONQ..."
-        style="font-family:var(--mono);font-size:14px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:180px;text-transform:uppercase;outline:none;"
+      <input type="text" id="qc-ticker" placeholder="e.g. MSFT, AMD..."
+        style="font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:140px;min-width:100px;flex:1;text-transform:uppercase;outline:none;"
         onkeydown="if(event.key==='Enter')qcCheck()"
         oninput="this.value=this.value.toUpperCase()"/>
-      <button class="btn btn-primary" id="qc-btn" onclick="qcCheck()" style="background:var(--green);border-color:var(--green);color:#000;font-size:13px;">⚡ Check</button>
+      <button class="btn btn-primary" id="qc-btn" onclick="qcCheck()" style="background:var(--green);border-color:var(--green);color:#000;font-size:13px;white-space:nowrap;">⚡ Check</button>
       <button class="btn" onclick="qcClear()" style="font-size:13px;">Clear</button>
-      <span id="qc-status" style="font-size:13px;font-family:var(--mono);color:var(--text3);"></span>
     </div>
+    <div id="qc-status" style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-bottom:6px;min-height:16px;"></div>
 
     <!-- COMPACT RESULT — shown by default -->
     <div id="qc-compact" style="display:none;">
-      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;">
+      <div style="background:var(--surface2);border-radius:10px;padding:12px;">
         <div id="qc-timestamp-banner"></div>
         <div id="qc-l2-row"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div>
-              <div style="font-family:var(--mono);font-size:18px;font-weight:600;" id="qc-name-disp">—</div>
-              <div style="font-size:12px;color:var(--text3);" id="qc-fullname-disp">—</div>
-            </div>
-            <div>
-              <div style="font-family:var(--mono);font-size:22px;font-weight:500;" id="qc-price-disp">—</div>
-              <div style="font-family:var(--mono);font-size:12px;" id="qc-chg-disp">—</div>
-            </div>
+
+        <!-- Ticker + price + score — stacked on mobile -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+          <div>
+            <div style="font-family:var(--mono);font-size:18px;font-weight:600;" id="qc-name-disp">—</div>
+            <div style="font-size:11px;color:var(--text3);" id="qc-fullname-disp">—</div>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:500;margin-top:4px;" id="qc-price-disp">—</div>
+            <div style="font-family:var(--mono);font-size:12px;" id="qc-chg-disp">—</div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div id="qc-score-badge" style="font-family:var(--mono);font-size:16px;font-weight:700;padding:6px 14px;border-radius:8px;">—</div>
-            <button class="btn" onclick="qcToggleExpand()" id="qc-expand-btn" style="font-size:12px;">▼ Full details</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <div id="qc-score-badge" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:5px 12px;border-radius:8px;">—</div>
+            <button class="btn" onclick="qcToggleExpand()" id="qc-expand-btn" style="font-size:12px;white-space:nowrap;">▼ Full details</button>
           </div>
         </div>
-        <!-- Signal dots row -->
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;" id="qc-dots-row"></div>
-        <!-- Key stats row -->
-        <div style="display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--text2);" id="qc-stats-row"></div>
-        <!-- Stop / Target -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;" id="qc-levels-row"></div>
+
+        <!-- Signal dots — wrap on mobile -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" id="qc-dots-row"></div>
+
+        <!-- Key stats — small mono, wraps naturally -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:10px;" id="qc-stats-row"></div>
+
+        <!-- Stop / Target — 1 col on very small, 3 col on wider -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:4px;" id="qc-levels-row"></div>
+
         <!-- Verdict -->
-        <div id="qc-verdict" style="margin-top:10px;padding:8px 12px;border-radius:6px;font-size:13px;font-family:var(--mono);"></div>
+        <div id="qc-verdict" style="margin-top:10px;padding:8px 10px;border-radius:6px;font-size:12px;font-family:var(--mono);line-height:1.4;"></div>
+
         <!-- Log button -->
         <button class="btn btn-primary" id="qc-log-btn" onclick="qcLogTrade()" style="width:100%;margin-top:10px;font-size:13px;padding:7px 0;background:var(--green);border-color:var(--green);color:#000;display:none;">+ Log trade</button>
       </div>
 
       <!-- EXPANDED FULL DETAILS -->
-      <div id="qc-expanded" style="display:none;margin-top:8px;" ></div>
+      <div id="qc-expanded" style="display:none;margin-top:8px;"></div>
     </div>
   </div>
 
@@ -3668,11 +3671,12 @@ function qcRender(r){
   badge.style.color=scoreColors[scoreClass];
   badge.style.border='1px solid '+scoreColors[scoreClass];
 
-  // Signal dots with labels
+  // Signal dots — compact for mobile
+  const sigShort=['RSI','MACD','>MA50','>MA200','Vol','BB'];
   document.getElementById('qc-dots-row').innerHTML=r.signals.map((s,i)=>
-    `<div style="display:flex;align-items:center;gap:4px;">
-      <div style="width:9px;height:9px;border-radius:50%;background:${s?'var(--green)':'var(--border2)'};flex-shrink:0;"></div>
-      <span style="font-family:var(--mono);font-size:11px;color:${s?'var(--green)':'var(--text3)'};">${sigLabels[i]}</span>
+    `<div style="display:flex;align-items:center;gap:3px;">
+      <div style="width:8px;height:8px;border-radius:50%;background:${s?'var(--green)':'var(--border2)'};flex-shrink:0;"></div>
+      <span style="font-family:var(--mono);font-size:10px;color:${s?'var(--green)':'var(--text3)'};">${sigShort[i]}</span>
     </div>`
   ).join('');
 
