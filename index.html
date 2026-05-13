@@ -3306,6 +3306,7 @@ function brRenderCards(){
       <div class="signals">${dotsHtml}</div>
       ${indPanel}
       ${buildSRPanel(r)}
+      ${buildEntryZonePanel(r)}
       <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>`;
   }
@@ -3761,7 +3762,7 @@ function qcRender(r){
 
   // Expanded panel (hidden by default)
   document.getElementById('qc-expanded').innerHTML=
-    brBuildIndicatorPanel(r)+buildSRPanel(r);
+    brBuildIndicatorPanel(r)+buildSRPanel(r)+buildEntryZonePanel(r);
   document.getElementById('qc-expanded').style.display='none';
 
   document.getElementById('qc-compact').style.display='block';
