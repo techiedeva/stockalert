@@ -1937,44 +1937,26 @@ function buildEntryZonePanel(r){
   const ez=r.entryZone;
   const statusBg=ez.statusColor==='var(--green)'?'var(--green-bg)':ez.statusColor==='var(--red)'?'var(--red-bg)':'var(--amber-bg)';
   const statusBorder=ez.statusColor==='var(--green)'?'var(--green-border)':ez.statusColor==='var(--red)'?'var(--red-border)':'var(--amber-border)';
-
-  // Status bar
-  const statusBar=`<div style="background:${statusBg};border:1px solid ${statusBorder};border-radius:6px;padding:7px 10px;margin-bottom:8px;font-family:var(--mono);font-size:12px;font-weight:600;color:${ez.statusColor};">
-    ${ez.priceStatus}
-  </div>`;
-
-  // Technique rows
+  const statusBar=`<div style="background:${statusBg};border:1px solid ${statusBorder};border-radius:6px;padding:8px 10px;margin-bottom:10px;font-family:var(--mono);font-size:12px;font-weight:600;color:${ez.statusColor};line-height:1.5;">${ez.priceStatus}</div>`;
+  const qc=(q)=>q==='best'?'var(--green)':q==='good'?'var(--amber)':'var(--text3)';
   const stars=(n)=>'★'.repeat(n)+'☆'.repeat(3-n);
-  const techRows=ez.techniques.map(t=>{
-    const qColor=t.quality==='best'?'var(--green)':t.quality==='good'?'var(--amber)':'var(--text3)';
-    const isOptimal=Math.abs(r.price-t.entry)/r.price<0.005;
-    const rowBg=isOptimal?'var(--green-bg)':'transparent';
-    return`<div style="display:grid;grid-template-columns:130px 80px 80px 80px 1fr;gap:6px;align-items:center;padding:5px 4px;border-radius:4px;background:${rowBg};border-bottom:1px solid var(--border);">
-      <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:${qColor};">${t.name}</span>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--green);">$${t.entry.toFixed(2)}–$${t.entryHigh.toFixed(2)}</span>
-      <span style="font-family:var(--mono);font-size:11px;color:var(--red);">SL $${t.stop.toFixed(2)}</span>
-      <span style="font-size:10px;color:${qColor};">${stars(t.stars)} R:R ${t.rr}:1</span>
-      <span style="font-size:10px;color:var(--text3);font-style:italic;">${t.note}</span>
-    </div>`;
-  }).join('');
-
-  // Do not enter above
-  const dangerRow=ez.doNotEnterAbove?`<div style="margin-top:8px;padding:5px 8px;background:var(--red-bg);border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;">
-    ✗ Do NOT enter above $${ez.doNotEnterAbove.toFixed(2)} ${ez.r1?'(R1 resistance — ceiling overhead)':'(max chase price)'}
-  </div>`:'';
-
+  const techCards=ez.techniques.map(t=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:${qc(t.quality)};">${t.name}</span>
+        <span style="font-size:12px;color:${qc(t.quality)};">${stars(t.stars)}</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;">
+        <span style="font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);">Entry $${t.entry.toFixed(2)}–$${t.entryHigh.toFixed(2)}</span>
+        <span style="font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);">Stop $${t.stop.toFixed(2)}</span>
+        <span style="font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);color:${qc(t.quality)};">R:R ${t.rr}:1</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.4;">${t.note}</div>
+    </div>`).join('');
+  const dangerRow=ez.doNotEnterAbove?`<div style="margin-top:4px;padding:7px 10px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--red);font-weight:600;line-height:1.4;">✗ Do NOT enter above $${ez.doNotEnterAbove.toFixed(2)}${ez.r1?' — R1 resistance ceiling':''}</div>`:'';
   return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;">
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">⚡ Optimal Entry Zone</div>
-    ${statusBar}
-    <div style="display:grid;grid-template-columns:130px 80px 80px 80px 1fr;gap:6px;padding:4px;border-bottom:1px solid var(--border);margin-bottom:4px;">
-      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Technique</span>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Entry range</span>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Stop</span>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">Quality</span>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;">When to use</span>
-    </div>
-    ${techRows}
-    ${dangerRow}
+    ${statusBar}${techCards}${dangerRow}
   </div>`;
 }
 function buildSRPanel(r){
