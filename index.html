@@ -368,48 +368,56 @@ tr:hover td{background:var(--surface2);}
       <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">ATR-based · Live data</div>
     </div>
 
-    <!-- INPUTS ROW -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">
+    <!-- INPUTS — 2 column grid, mobile friendly -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+
+      <!-- Row 1: Ticker + Entry Price -->
       <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">TICKER</label>
-        <input type="text" class="jnl-input" id="te-ticker" placeholder="TQQQ" style="text-transform:uppercase;width:100%;" oninput="teClearResults()"/>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">TICKER</label>
+        <input type="text" class="jnl-input" id="te-ticker" placeholder="TQQQ" style="text-transform:uppercase;width:100%;box-sizing:border-box;" oninput="teClearResults()"/>
       </div>
       <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ENTRY PRICE ($)</label>
-        <input type="number" class="jnl-input" id="te-entry" placeholder="62.50" step="0.01" style="width:100%;" oninput="teOnEntryChange()"/>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">ENTRY PRICE ($)</label>
+        <input type="number" class="jnl-input" id="te-entry" placeholder="62.50" step="0.01" style="width:100%;box-sizing:border-box;" oninput="teOnEntryChange()"/>
+      </div>
+
+      <!-- Row 2: Amount + Shares -->
+      <div>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">INVEST ($)</label>
+        <input type="number" class="jnl-input" id="te-amount" placeholder="5000" min="1" style="width:100%;box-sizing:border-box;border:1px solid var(--border2);" oninput="teOnAmountChange()"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">→ auto-calc shares</div>
       </div>
       <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">AMOUNT TO INVEST ($)</label>
-        <input type="number" class="jnl-input" id="te-amount" placeholder="5000" min="1" style="width:100%;border:1px solid var(--border2);" oninput="teOnAmountChange()"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">→ auto-calculates shares</div>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">SHARES</label>
+        <input type="number" class="jnl-input" id="te-shares-input" placeholder="e.g. 80" min="1" style="width:100%;box-sizing:border-box;" oninput="teOnSharesChange()"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">→ auto-calc amount</div>
       </div>
+
+      <!-- Row 3: ATR Multiplier + Profit Goal -->
       <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">NUMBER OF SHARES</label>
-        <input type="number" class="jnl-input" id="te-shares-input" placeholder="e.g. 80" min="1" style="width:100%;" oninput="teOnSharesChange()"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">→ auto-calculates amount</div>
-      </div>
-      <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">ATR MULTIPLIER</label>
-        <select class="jnl-select" id="te-mult" style="width:100%;" onchange="teRecompute()">
-          <option value="1">1× ATR (tight)</option>
-          <option value="1.5" selected>1.5× ATR (standard)</option>
-          <option value="2">2× ATR (wide)</option>
-          <option value="2.5">2.5× ATR (very wide)</option>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">ATR MULTIPLIER</label>
+        <select class="jnl-select" id="te-mult" style="width:100%;box-sizing:border-box;" onchange="teRecompute()">
+          <option value="1">1× (tight)</option>
+          <option value="1.5" selected>1.5× (standard)</option>
+          <option value="2">2× (wide)</option>
+          <option value="2.5">2.5× (very wide)</option>
         </select>
       </div>
       <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">PROFIT GOAL ($) <span style="color:var(--accent);">optional</span></label>
-        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">How much $ profit you want</div>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">PROFIT GOAL ($) <span style="color:var(--accent);">opt</span></label>
+        <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 100" step="1" min="1" style="width:100%;box-sizing:border-box;" oninput="teRecompute()"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Desired $ profit</div>
       </div>
-      <div>
-        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">TARGET PRICE ($) <span style="color:var(--accent);">optional</span></label>
-        <input type="number" class="jnl-input" id="te-target-price" placeholder="e.g. 68.50" step="0.01" style="width:100%;" oninput="teRecompute()"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Sell price you have in mind</div>
+
+      <!-- Row 4: Target Price — full width -->
+      <div style="grid-column:1 / -1;">
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">TARGET PRICE ($) <span style="color:var(--accent);">optional</span> <span style="color:var(--text3);font-size:10px;">— sell price you have in mind</span></label>
+        <input type="number" class="jnl-input" id="te-target-price" placeholder="e.g. 68.50" step="0.01" style="width:100%;box-sizing:border-box;max-width:200px;" oninput="teRecompute()"/>
       </div>
+
     </div>
-    <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="font-size:13px;padding:9px 24px;">⚡ Fetch ATR &amp; Calculate</button>
-    <span style="font-size:12px;color:var(--text3);margin-left:10px;">Pulls live volatility · results update instantly when you change any field</span>
+    <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="font-size:13px;padding:9px 20px;width:100%;max-width:320px;">⚡ Fetch ATR &amp; Calculate</button>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;">Pulls live volatility · results update instantly when you change any field</div>
 
     <div id="te-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:10px;min-height:16px;"></div>
 
