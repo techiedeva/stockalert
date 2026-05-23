@@ -402,6 +402,11 @@ tr:hover td{background:var(--surface2);}
         <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 50 or 100" step="1" min="1" style="width:100%;" oninput="teRecompute()"/>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">How much $ profit you want</div>
       </div>
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">TARGET PRICE ($) <span style="color:var(--accent);">optional</span></label>
+        <input type="number" class="jnl-input" id="te-target-price" placeholder="e.g. 68.50" step="0.01" style="width:100%;" oninput="teRecompute()"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Sell price you have in mind</div>
+      </div>
     </div>
     <button class="btn btn-primary" id="te-fetch-btn" onclick="teFetch()" style="font-size:13px;padding:9px 24px;">⚡ Fetch ATR &amp; Calculate</button>
     <span style="font-size:12px;color:var(--text3);margin-left:10px;">Pulls live volatility · results update instantly when you change any field</span>
@@ -471,6 +476,19 @@ tr:hover td{background:var(--surface2);}
           </div>
         </div>
 
+        <!-- TARGET PRICE CARD -->
+        <div id="te-target-price-card" style="display:none;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.4);border-radius:8px;padding:14px;">
+          <div style="font-size:10px;font-family:var(--mono);letter-spacing:1px;color:#9B59B6;margin-bottom:6px;">TARGET PRICE 🎯</div>
+          <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">If sold at <strong style="color:#9B59B6;" id="te-tp-price">—</strong>:</div>
+          <div style="font-size:22px;font-weight:600;font-family:var(--mono);" id="te-tp-profit">—</div>
+          <div style="font-size:12px;font-family:var(--mono);margin-top:4px;" id="te-tp-rr">—</div>
+          <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-top:2px;" id="te-tp-breakdown">—</div>
+          <div style="font-size:12px;font-family:var(--mono);margin-top:8px;padding-top:8px;border-top:1px solid rgba(155,89,182,0.2);">
+            <div style="color:var(--text3);margin-bottom:4px;">Required stop for standard R:R at this target:</div>
+            <div style="font-size:13px;font-weight:600;" id="te-tp-stops">—</div>
+          </div>
+        </div>
+
       </div>
 
       <!-- MATH BREAKDOWN -->
@@ -532,10 +550,10 @@ tr:hover td{background:var(--surface2);}
         <tr>
           <th>Date</th><th>Ticker</th><th>Dir</th><th>Entry</th><th>Exit</th>
           <th>Qty</th><th>Stop</th><th>Target</th><th>P&amp;L</th><th>R:R</th>
-          <th>Score</th><th>Notes</th><th>Action</th>
+          <th>Score</th><th>Date Closed</th><th>Days Held</th><th>Notes</th><th>Action</th>
         </tr>
       </thead>
-      <tbody id="jj-body"><tr><td colspan="13" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr></tbody>
+      <tbody id="jj-body"><tr><td colspan="15" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr></tbody>
     </table>
   </div>
 
@@ -1907,7 +1925,7 @@ function renderResults(){
         <td><button class="btn" onclick='event.stopPropagation();jjPrefillByKey("${storeResult(r)}")' style="font-size:10px;padding:4px 10px;color:var(--accent);border-color:var(--green-border);">+ Log</button></td>
       </tr>
       <tr id="${rowId}" style="display:none;background:var(--surface2);">
-        <td colspan="13" style="padding:10px 16px;">
+        <td colspan="15" style="padding:10px 16px;">
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
             <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-right:10px;text-transform:uppercase;letter-spacing:1px;">Indicators:</span>
             ${indVals}
@@ -2457,16 +2475,58 @@ function jjAddTrade(){
 }
 
 function jjCloseTrade(id){
-  const exit=parseFloat(prompt('Enter your actual exit price:'));
-  if(isNaN(exit)||exit<=0) return;
+  // Show close modal with exit price + date picker
+  const existing=document.getElementById('jj-close-modal');
+  if(existing) existing.remove();
+  const today=new Date().toISOString().split('T')[0];
+  const modal=document.createElement('div');
+  modal.id='jj-close-modal';
+  modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:380px;">
+      <div style="font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Close Position</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:5px;">EXIT PRICE ($)</label>
+        <input type="number" id="jj-close-price" placeholder="e.g. 68.50" step="0.01"
+          style="width:100%;font-family:var(--mono);font-size:16px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);outline:none;box-sizing:border-box;"/>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:5px;">DATE CLOSED</label>
+        <input type="date" id="jj-close-date" value="${today}"
+          style="width:100%;font-family:var(--mono);font-size:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);outline:none;box-sizing:border-box;"/>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="jjConfirmClose(${id})" style="flex:1;font-size:13px;padding:10px;">Confirm Close</button>
+        <button class="btn" onclick="document.getElementById('jj-close-modal').remove()" style="font-size:13px;padding:10px;">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('jj-close-price').focus(),100);
+}
+
+function jjConfirmClose(id){
+  const exit=parseFloat(document.getElementById('jj-close-price').value);
+  const dateVal=document.getElementById('jj-close-date').value;
+  if(isNaN(exit)||exit<=0){alert('Enter a valid exit price.');return;}
+  if(!dateVal){alert('Select a close date.');return;}
   const trades=jjGetTrades();
   const t=trades.find(x=>x.id===id);
   if(!t) return;
-  t.exit=exit;t.status='Closed';
+  t.exit=exit;
+  t.status='Closed';
+  t.dateClosed=dateVal;
+  // Calculate days held
+  try{
+    const entryDate=new Date(t.date.split('/').reverse().join('-')||t.date);
+    const closeDate=new Date(dateVal);
+    const diffMs=closeDate-entryDate;
+    t.daysHeld=Math.max(0,Math.round(diffMs/(1000*60*60*24)));
+  }catch(e){ t.daysHeld=null; }
   t.pnl=parseFloat(((t.dir==='Long'?(exit-t.entry):(t.entry-exit))*t.qty).toFixed(2));
   jjSaveTrades(trades);
+  document.getElementById('jj-close-modal').remove();
   jjRender();
-  log('Closed '+t.ticker+' P&L $'+t.pnl,(t.pnl>=0?'good':'warn'));
+  log('Closed '+t.ticker+' at $'+exit+' · P&L $'+t.pnl+(t.daysHeld!=null?' · held '+t.daysHeld+'d':'') ,(t.pnl>=0?'good':'warn'));
 }
 
 function jjDeleteTrade(id){
@@ -2499,13 +2559,14 @@ function jjRender(){
 
   const body=document.getElementById('jj-body');
   if(!trades.length){
-    body.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr>';
+    body.innerHTML='<tr><td colspan="15" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr>';
     return;
   }
   body.innerHTML=trades.map(t=>{
     let pnlHtml='<span class="badge-open">Open</span>';
     if(t.pnl!=null) pnlHtml=t.pnl>=0?`<span class="badge-win">+$${t.pnl.toFixed(2)}</span>`:`<span class="badge-loss">-$${Math.abs(t.pnl).toFixed(2)}</span>`;
     const src=t.source==='scanner'?'<span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:1px 5px;border-radius:3px;margin-left:4px;">scan</span>':'';
+    const daysColor=t.daysHeld!=null?(t.daysHeld<=1?'var(--green)':t.daysHeld<=5?'var(--amber)':'var(--text2)'):'var(--text3)';
     return`<tr>
       <td style="color:var(--text2);font-size:11px;">${t.date}</td>
       <td style="font-weight:600;">${t.ticker}${src}</td>
@@ -2518,6 +2579,8 @@ function jjRender(){
       <td>${pnlHtml}</td>
       <td style="color:var(--text2);">${t.rr?t.rr+':1':'—'}</td>
       <td style="color:var(--text2);">${t.score}/6</td>
+      <td style="color:var(--text2);font-size:11px;">${t.dateClosed||'—'}</td>
+      <td style="color:${daysColor};font-family:var(--mono);font-size:12px;">${t.daysHeld!=null?t.daysHeld+'d':'—'}</td>
       <td style="color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.notes||'—'}</td>
       <td style="white-space:nowrap;">
         ${t.status==='Open'?`<button class="btn" onclick="jjCloseTrade(${t.id})" style="font-size:10px;padding:3px 8px;color:var(--green);border-color:var(--green-border);">Close</button> `:''}
@@ -2617,6 +2680,8 @@ function teClearResults(){
   document.getElementById('te-status').textContent='';
   document.getElementById('te-custom-target').value='';
   document.getElementById('te-custom-card').style.display='none';
+  document.getElementById('te-target-price').value='';
+  document.getElementById('te-target-price-card').style.display='none';
   document.getElementById('te-shares-input').value='';
   document.getElementById('te-amount').value='';
 }
@@ -2780,6 +2845,36 @@ function teRecompute(){
   }
 
   _teResult={ticker:_teTicker,entry,stop,target:profitGoal>0&&shares>0?parseFloat((entry+profitGoal/shares).toFixed(2)):t2,qty:shares,riskPerShare,atr:_teATR.toFixed(3),invested:actualInvested};
+
+  // ── TARGET PRICE CALCULATION ──────────────────────────────
+  const targetPrice=parseFloat(document.getElementById('te-target-price').value)||0;
+  const tpCard=document.getElementById('te-target-price-card');
+  if(targetPrice>entry&&shares>0){
+    tpCard.style.display='block';
+    const gainPerShare=parseFloat((targetPrice-entry).toFixed(4));
+    const totalProfit=parseFloat((gainPerShare*shares).toFixed(2));
+    const impliedRR=parseFloat((gainPerShare/riskPerShare).toFixed(2));
+    const stopFor2RR=parseFloat((entry-gainPerShare/2).toFixed(2));
+    const stopFor3RR=parseFloat((entry-gainPerShare/3).toFixed(2));
+    const rrColor=impliedRR>=3?'var(--green)':impliedRR>=2?'var(--green)':impliedRR>=1?'var(--amber)':'var(--red)';
+    const rrLabel=impliedRR>=2?'✓ Good R:R':impliedRR>=1?'⚠ Marginal R:R':'✗ Poor R:R — risk > reward';
+    document.getElementById('te-tp-price').textContent='$'+targetPrice.toFixed(2);
+    document.getElementById('te-tp-profit').innerHTML=`<span style="color:${rrColor};">+$${totalProfit.toFixed(2)} profit</span>`;
+    document.getElementById('te-tp-rr').innerHTML=`R:R = <strong style="color:${rrColor};">${impliedRR}:1</strong> &nbsp;·&nbsp; <span style="color:${rrColor};">${rrLabel}</span>`;
+    document.getElementById('te-tp-breakdown').textContent=`${shares} shares × +$${gainPerShare.toFixed(2)}/share = $${totalProfit.toFixed(2)}`;
+    document.getElementById('te-tp-stops').innerHTML=
+      `For 2:1 → stop at <span style="color:var(--red);">$${stopFor2RR.toFixed(2)}</span>`+
+      ` &nbsp;·&nbsp; For 3:1 → stop at <span style="color:var(--red);">$${stopFor3RR.toFixed(2)}</span>`;
+  } else if(targetPrice>0&&targetPrice<=entry){
+    tpCard.style.display='block';
+    document.getElementById('te-tp-price').textContent='$'+targetPrice.toFixed(2);
+    document.getElementById('te-tp-profit').textContent='—';
+    document.getElementById('te-tp-rr').innerHTML='<span style="color:var(--red);">⚠ Target must be above entry price</span>';
+    document.getElementById('te-tp-breakdown').textContent='';
+    document.getElementById('te-tp-stops').textContent='';
+  } else {
+    tpCard.style.display='none';
+  }
   document.getElementById('te-results').style.display='block';
 }
 
@@ -3354,7 +3449,7 @@ function brRenderCards(){
           <td><button class="btn" onclick='event.stopPropagation();jjPrefillByKey("${storeResult(r)}")' style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green-border);">+ Log</button></td>
         </tr>
         <tr id="${rowId}" style="display:none;background:var(--surface2);">
-          <td colspan="13" style="padding:10px 16px;">
+          <td colspan="15" style="padding:10px 16px;">
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
               <span style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-right:10px;text-transform:uppercase;letter-spacing:1px;">Indicators:</span>
               ${indVals}
