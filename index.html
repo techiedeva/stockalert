@@ -31,6 +31,9 @@
   --accent:#00d084;
   --mono:'IBM Plex Mono',monospace;
   --sans:'IBM Plex Sans',sans-serif;
+  --yellow:#ffe047;
+  --yellow-bg:rgba(255,224,71,0.12);
+  --yellow-border:rgba(255,224,71,0.4);
 }
 html{background:var(--bg);}
 body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(--bg);font-size:16px;}
@@ -115,7 +118,6 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .sig-dot.on{background:var(--green);}
 .sig-dot.off{background:var(--border2);}
 .sig-dot.partial{background:var(--amber);}
-:root{--yellow:#ffe047;--yellow-bg:rgba(255,224,71,0.12);--yellow-border:rgba(255,224,71,0.4);}
 .score-badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;}
 .score-badge.s6{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border);}
 .score-badge.s5{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);}
@@ -547,10 +549,38 @@ tr:hover td{background:var(--surface2);}
   </div>
 
   <!-- TRADE TABLE -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
     <div class="section-title" style="margin:0;flex:1;">Trade history — shared with Alert System</div>
     <button class="btn" onclick="jjExportCSV()" style="font-size:11px;padding:5px 12px;">Export CSV</button>
-    <button class="btn btn-danger" onclick="jjClearAll()" style="font-size:11px;padding:5px 12px;margin-left:6px;">Clear all</button>
+    <button class="btn btn-danger" onclick="jjClearAll()" style="font-size:11px;padding:5px 12px;">Clear all</button>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+    <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);white-space:nowrap;">Filter:</span>
+    <input type="text" id="jj-filter-ticker" placeholder="Ticker e.g. TSLA"
+      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);width:120px;outline:none;text-transform:uppercase;"
+      oninput="this.value=this.value.toUpperCase();jjRender()"/>
+    <select id="jj-filter-status" onchange="jjRender()"
+      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;">
+      <option value="">All trades</option>
+      <option value="Open">Open only</option>
+      <option value="Closed">Closed only</option>
+    </select>
+    <select id="jj-filter-dir" onchange="jjRender()"
+      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;">
+      <option value="">Long &amp; Short</option>
+      <option value="Long">Long only</option>
+      <option value="Short">Short only</option>
+    </select>
+    <select id="jj-filter-result" onchange="jjRender()"
+      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;">
+      <option value="">Win &amp; Loss</option>
+      <option value="win">Winners only</option>
+      <option value="loss">Losers only</option>
+    </select>
+    <button class="btn" onclick="jjClearFilters()" style="font-size:11px;padding:5px 10px;">✕ Clear</button>
+    <span id="jj-filter-count" style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:auto;"></span>
   </div>
   <div class="table-wrap">
     <table>
@@ -2537,6 +2567,18 @@ function jjConfirmClose(id){
   log('Closed '+t.ticker+' at $'+exit+' · P&L $'+t.pnl+(t.daysHeld!=null?' · held '+t.daysHeld+'d':'') ,(t.pnl>=0?'good':'warn'));
 }
 
+function jjClearFilters(){
+  const t=document.getElementById('jj-filter-ticker');
+  const s=document.getElementById('jj-filter-status');
+  const d=document.getElementById('jj-filter-dir');
+  const r=document.getElementById('jj-filter-result');
+  if(t) t.value='';
+  if(s) s.value='';
+  if(d) d.value='';
+  if(r) r.value='';
+  jjRender();
+}
+
 function jjDeleteTrade(id){
   if(!confirm('Delete this trade?')) return;
   const trades=jjGetTrades().filter(x=>x.id!==id);
@@ -2568,9 +2610,39 @@ function jjRender(){
   const body=document.getElementById('jj-body');
   if(!trades.length){
     body.innerHTML='<tr><td colspan="16" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr>';
+    const fc=document.getElementById('jj-filter-count');
+    if(fc) fc.textContent='';
     return;
   }
-  body.innerHTML=trades.map(t=>{
+
+  // ── APPLY FILTERS ─────────────────────────────────────────
+  const fTicker=(document.getElementById('jj-filter-ticker')?.value||'').trim().toUpperCase();
+  const fStatus=document.getElementById('jj-filter-status')?.value||'';
+  const fDir=document.getElementById('jj-filter-dir')?.value||'';
+  const fResult=document.getElementById('jj-filter-result')?.value||'';
+
+  let filtered=trades.filter(t=>{
+    if(fTicker && !t.ticker.toUpperCase().includes(fTicker)) return false;
+    if(fStatus && t.status!==fStatus) return false;
+    if(fDir && t.dir!==fDir) return false;
+    if(fResult==='win' && !(t.pnl!=null&&t.pnl>0)) return false;
+    if(fResult==='loss' && !(t.pnl!=null&&t.pnl<=0)) return false;
+    return true;
+  });
+
+  const fc=document.getElementById('jj-filter-count');
+  if(fc){
+    const isFiltered=fTicker||fStatus||fDir||fResult;
+    fc.textContent=isFiltered?`${filtered.length} of ${trades.length} trades`:`${trades.length} trades`;
+    fc.style.color=isFiltered?'var(--amber)':'var(--text3)';
+  }
+
+  if(!filtered.length){
+    body.innerHTML='<tr><td colspan="16" style="text-align:center;color:var(--text3);padding:24px;font-family:var(--mono);font-size:12px;">No trades match the current filter.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=filtered.map(t=>{
     let pnlHtml='<span class="badge-open">Open</span>';
     if(t.pnl!=null) pnlHtml=t.pnl>=0?`<span class="badge-win">+$${t.pnl.toFixed(2)}</span>`:`<span class="badge-loss">-$${Math.abs(t.pnl).toFixed(2)}</span>`;
     const src=t.source==='scanner'?'<span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:1px 5px;border-radius:3px;margin-left:4px;">scan</span>':'';
