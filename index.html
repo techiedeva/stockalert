@@ -102,6 +102,11 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .alert-card{background:var(--surface);border:1px solid var(--green-border);border-radius:10px;padding:16px;position:relative;overflow:hidden;transition:transform .15s;display:flex;flex-direction:column;}
 .alert-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),transparent);}
 .alert-card:hover{transform:translateY(-2px);}
+.card-header{cursor:pointer;user-select:none;padding-right:20px;}
+.card-chev{position:absolute;top:14px;right:14px;font-size:13px;color:var(--text3);transition:transform .2s;line-height:1;pointer-events:none;}
+.card-body{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:2000px;opacity:1;}
+.alert-card.collapsed .card-body{max-height:0;opacity:0;}
+.alert-card.collapsed{padding-bottom:14px;}
 .alert-card .ticker{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green);margin-bottom:2px;}
 .alert-card .name{font-size:11px;color:var(--text3);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .alert-card .price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
@@ -1894,43 +1899,49 @@ function renderResults(){
   cardsWrap.innerHTML='';
   if(launches.length>0){
     document.getElementById('alerts-section').style.display='block';
-    launches.forEach(r=>{
+    launches.forEach((r,i)=>{
       const chgClass=r.chgPct>=0?'pos':'neg';
       const chgStr=(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)+'%';
       const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" data-tip="${['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pullback'][i]}"></div>`).join('');
+      const cid=`card-rev-${r.ticker}-${i}`;
       cardsWrap.innerHTML+=`
-      <div class="alert-card">
-        <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
-        <div class="ticker">${r.ticker}</div>
-        <div class="name">${r.name}</div>
-        ${buildDataTimestamp()}
-        ${r.l2?buildVIXBanner():''}
-        ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-          ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
-          ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
-          ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
+      <div class="alert-card" id="${cid}">
+        <span class="card-chev">▾</span>
+        <div class="card-header" onclick="toggleCard('${cid}')">
+          <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
+          <div class="ticker">${r.ticker}</div>
+          <div class="name">${r.name}</div>
+          <div class="price-row">
+            <div class="price">$${r.price.toFixed(2)}</div>
+            <div class="change ${chgClass}">${chgStr}</div>
+          </div>
         </div>
-        ${buildVerdict(r,'reversal')}
-        <div class="price-row">
-          <div class="price">$${r.price.toFixed(2)}</div>
-          <div class="change ${chgClass}">${chgStr}</div>
+        <div class="card-body">
+          ${buildDataTimestamp()}
+          ${r.l2?buildVIXBanner():''}
+          ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+            ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
+            ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+            ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
+          </div>
+          ${buildVerdict(r,'reversal')}
+          <div class="levels">
+            <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
+            <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
+            <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
+            RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}
+          </div>
+          <div class="signals">${dotsHtml}</div>
+          ${buildIndicatorPanel(r)}
+          ${buildSRPanel(r)}
+          ${buildEntryZonePanel(r)}
+          ${buildPositionSizing(r)}
+          ${buildWinRateContext(r)}
+          <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
         </div>
-        <div class="levels">
-          <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
-          <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
-          <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
-        </div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
-          RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}
-        </div>
-        <div class="signals">${dotsHtml}</div>
-        ${buildIndicatorPanel(r)}
-        ${buildSRPanel(r)}
-        ${buildEntryZonePanel(r)}
-        ${buildPositionSizing(r)}
-        ${buildWinRateContext(r)}
-        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
       </div>`;
     });
   } else {
@@ -2153,6 +2164,7 @@ function jjPrefillByKey(key){ const r=_resultStore[key]; if(r) jjPrefill(r); }
 
 // 6/6 = bright yellow, 5/6 = amber, 4/6 = white, 3/6 = muted
 function scoreBadgeClass(s){return s>=6?'s6':s>=5?'s5':s>=4?'s4':'s3';}
+function toggleCard(id){const card=document.getElementById(id);if(!card)return;const collapsed=card.classList.toggle('collapsed');const chev=card.querySelector('.card-chev');if(chev)chev.style.transform=collapsed?'rotate(-90deg)':'rotate(0deg)';}
 function scoreInlineStyle(s){
   if(s>=6) return 'color:var(--yellow);font-weight:700;';
   if(s>=5) return 'color:var(--amber);font-weight:600;';
@@ -3404,36 +3416,42 @@ function exRenderAlerts(){
   cards.innerHTML='';
   document.getElementById('ex-alerts-section').style.display='block';
   const sigLabels=['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pull'];
-  exResults.sort((a,b)=>b.score-a.score||a.rsi-b.rsi).forEach(r=>{
+  exResults.sort((a,b)=>b.score-a.score||a.rsi-b.rsi).forEach((r,i)=>{
     const chgClass=r.chgPct>=0?'pos':'neg';
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
+    const cid=`card-ex-${r.ticker}-${i}`;
     cards.innerHTML+=`
-    <div class="alert-card">
-      <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
-      <div class="ticker">${r.ticker}</div>
-      <div class="name">${r.name}</div>
-      ${buildDataTimestamp()}
-      ${r.l2?buildVIXBanner():''}
-      ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
-      ${buildVerdict(r,'reversal')}
-      <div class="price-row">
-        <div class="price">$${r.price.toFixed(2)}</div>
-        <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
+    <div class="alert-card" id="${cid}">
+      <span class="card-chev">▾</span>
+      <div class="card-header" onclick="toggleCard('${cid}')">
+        <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
+        <div class="ticker">${r.ticker}</div>
+        <div class="name">${r.name}</div>
+        <div class="price-row">
+          <div class="price">$${r.price.toFixed(2)}</div>
+          <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
+        </div>
       </div>
-      <div class="levels">
-        <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
-        <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
-        <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+      <div class="card-body">
+        ${buildDataTimestamp()}
+        ${r.l2?buildVIXBanner():''}
+        ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
+        ${buildVerdict(r,'reversal')}
+        <div class="levels">
+          <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
+          <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
+          <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+        </div>
+        <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}</div>
+        <div class="signals">${dotsHtml}</div>
+        ${buildIndicatorPanel(r)}
+        ${buildSRPanel(r)}
+        ${buildEntryZonePanel(r)}
+        ${buildPositionSizing(r)}
+        ${buildWinRateContext(r)}
+        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
       </div>
-      <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">RSI ${r.rsi||'—'} · Pullback ${r.pullbackPct}% · Vol ${r.volRatio}x · ATR $${r.atr}</div>
-      <div class="signals">${dotsHtml}</div>
-      ${buildIndicatorPanel(r)}
-      ${buildSRPanel(r)}
-      ${buildEntryZonePanel(r)}
-      ${buildPositionSizing(r)}
-      ${buildWinRateContext(r)}
-      <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
     </div>`;
   });
 }
@@ -3625,44 +3643,50 @@ function brRenderCards(){
   const building=brResults.filter(r=>r.score===4).sort((a,b)=>b.rsi-a.rsi);
   const sigLabels=['RSI 50-65','MACD>0','Price>MA50','Price<>MA200','Vol expanding','BB squeeze'];
 
+  let _brCardIdx=0;
   function makeCard(r){
     const chgClass=r.chgPct>=0?'pos':'neg';
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     const indPanel=brBuildIndicatorPanel(r);
-    return`<div class="alert-card" style="border-color:var(--green-border);">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),transparent);"></div>
-      <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
-      <div class="ticker" style="color:var(--green);">${r.ticker}</div>
-      <div class="name">${r.name}</div>
-      ${buildDataTimestamp()}
-      ${r.l2?buildVIXBanner():''}
-      ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-        ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
-        ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
-        ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
+    const cid=`card-br-${r.ticker}-${_brCardIdx++}`;
+    return`<div class="alert-card" id="${cid}" style="border-color:var(--green-border);">
+      <span class="card-chev">▾</span>
+      <div class="card-header" onclick="toggleCard('${cid}')">
+        <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
+        <div class="ticker" style="color:var(--green);">${r.ticker}</div>
+        <div class="name">${r.name}</div>
+        <div class="price-row">
+          <div class="price">$${r.price.toFixed(2)}</div>
+          <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
+        </div>
       </div>
-      ${buildVerdict(r,'bullrun')}
-      <div class="price-row">
-        <div class="price">$${r.price.toFixed(2)}</div>
-        <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
+      <div class="card-body">
+        ${buildDataTimestamp()}
+        ${r.l2?buildVIXBanner():''}
+        ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+          ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
+          ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+          ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
+        </div>
+        ${buildVerdict(r,'bullrun')}
+        <div class="levels">
+          <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
+          <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
+          <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
+          RSI ${r.rsi||'—'} · MACD ${r.cMACD||'—'} · Vol ${r.volRatio}× · ATR $${r.atr}
+          ${r.vsMA50!=null?' · '+( r.vsMA50>=0?'+':'')+r.vsMA50+'% vs MA50':''}
+        </div>
+        <div class="signals">${dotsHtml}</div>
+        ${indPanel}
+        ${buildSRPanel(r)}
+        ${buildEntryZonePanel(r)}
+        ${buildPositionSizing(r)}
+        ${buildWinRateContext(r)}
+        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
       </div>
-      <div class="levels">
-        <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
-        <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
-        <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
-      </div>
-      <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;">
-        RSI ${r.rsi||'—'} · MACD ${r.cMACD||'—'} · Vol ${r.volRatio}× · ATR $${r.atr}
-        ${r.vsMA50!=null?' · '+( r.vsMA50>=0?'+':'')+r.vsMA50+'% vs MA50':''}
-      </div>
-      <div class="signals">${dotsHtml}</div>
-      ${indPanel}
-      ${buildSRPanel(r)}
-      ${buildEntryZonePanel(r)}
-      ${buildPositionSizing(r)}
-      ${buildWinRateContext(r)}
-      <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>`;
   }
 
