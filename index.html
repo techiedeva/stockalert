@@ -1905,8 +1905,8 @@ function renderResults(){
       const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" data-tip="${['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pullback'][i]}"></div>`).join('');
       const cid=`card-rev-${r.ticker}-${i}`;
       cardsWrap.innerHTML+=`
-      <div class="alert-card" id="${cid}">
-        <span class="card-chev">▾</span>
+      <div class="alert-card collapsed" id="${cid}" style="align-self:start;">
+        <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
         <div class="card-header" onclick="toggleCard('${cid}')">
           <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
           <div class="ticker">${r.ticker}</div>
@@ -3421,8 +3421,8 @@ function exRenderAlerts(){
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     const cid=`card-ex-${r.ticker}-${i}`;
     cards.innerHTML+=`
-    <div class="alert-card" id="${cid}">
-      <span class="card-chev">▾</span>
+    <div class="alert-card collapsed" id="${cid}" style="align-self:start;">
+      <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker">${r.ticker}</div>
@@ -3649,8 +3649,8 @@ function brRenderCards(){
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     const indPanel=brBuildIndicatorPanel(r);
     const cid=`card-br-${r.ticker}-${_brCardIdx++}`;
-    return`<div class="alert-card" id="${cid}" style="border-color:var(--green-border);">
-      <span class="card-chev">▾</span>
+    return`<div class="alert-card collapsed" id="${cid}" style="border-color:var(--green-border);align-self:start;">
+      <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker" style="color:var(--green);">${r.ticker}</div>
