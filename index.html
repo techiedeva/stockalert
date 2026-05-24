@@ -107,6 +107,10 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .card-body{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:2000px;opacity:1;display:flex;flex-direction:column;flex-grow:1;}
 .alert-card.collapsed .card-body{max-height:0;opacity:0;}
 .alert-card.collapsed{padding-bottom:14px;}
+.sec-body{overflow:hidden;transition:max-height .3s ease,opacity .2s ease;max-height:6000px;opacity:1;}
+.sec-collapsed .sec-body{max-height:0;opacity:0;}
+.sec-toggle{cursor:pointer;user-select:none;}
+.sec-chev{font-size:12px;color:var(--text3);transition:transform .2s;display:inline-block;margin-right:4px;}
 .alert-card .ticker{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green);margin-bottom:2px;}
 .alert-card .name{font-size:11px;color:var(--text3);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .alert-card .price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
@@ -327,9 +331,9 @@ tr:hover td{background:var(--surface2);}
   </div>
 
   <!-- FULL RESULTS -->
-  <div id="results-section" style="display:none;">
-    <div class="section-title">Full scan results</div>
-    <div class="table-wrap">
+  <div id="results-section" style="display:none;" class="sec-collapsed">
+    <div class="section-title sec-toggle" onclick="toggleSec('results-section')"><span class="sec-chev" style="transform:rotate(-90deg);">▾</span>Full scan results</div>
+    <div class="sec-body"><div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -350,7 +354,7 @@ tr:hover td{background:var(--surface2);}
         </thead>
         <tbody id="results-body"></tbody>
       </table>
-    </div>
+    </div></div>
   </div>
 
   <div id="empty-state" class="empty">
@@ -376,13 +380,15 @@ tr:hover td{background:var(--surface2);}
   </div>
 
   <!-- ===== TRADE ENTRY CALCULATOR ===== -->
-  <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:20px;margin-top:14px;margin-bottom:20px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+  <div id="te-planner-section" class="sec-collapsed" style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:20px;margin-top:14px;margin-bottom:20px;">
+    <div class="sec-toggle" onclick="toggleSec('te-planner-section')" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <span class="sec-chev" style="transform:rotate(-90deg);">▾</span>
       <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);">📊 Risk &amp; Profit Planner</div>
       <div style="font-size:13px;color:var(--text3);margin-top:3px;">Enter ticker + entry price + investment → get stop-loss, sell targets, profit scenarios</div>
       <div style="flex:1;height:1px;background:var(--green-border);"></div>
       <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">ATR-based · Live data</div>
     </div>
+    <div class="sec-body">
 
     <!-- INPUTS — 2 column grid, mobile friendly -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
@@ -526,6 +532,7 @@ tr:hover td{background:var(--surface2);}
       </div>
 
     </div>
+    </div>
   </div>
 
   <!-- JOURNAL STATS -->
@@ -563,18 +570,21 @@ tr:hover td{background:var(--surface2);}
   </div>
 
   <!-- TRADE TABLE -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-    <div class="section-title" style="margin:0;flex:1;">Trade history — shared with Alert System</div>
-    <button class="btn" onclick="jjExportCSV()" style="font-size:11px;padding:5px 12px;">Export CSV</button>
-    <button class="btn btn-danger" onclick="jjClearAll()" style="font-size:11px;padding:5px 12px;">Clear all</button>
+  <div id="jj-history-section" class="sec-collapsed">
+  <div class="sec-toggle" onclick="toggleSec('jj-history-section')" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+    <div class="section-title" style="margin:0;flex:1;"><span class="sec-chev" style="transform:rotate(-90deg);">▾</span>Trade history — shared with Alert System</div>
+    <button class="btn" onclick="event.stopPropagation();jjExportCSV()" style="font-size:11px;padding:5px 12px;">Export CSV</button>
+    <button class="btn btn-danger" onclick="event.stopPropagation();jjClearAll()" style="font-size:11px;padding:5px 12px;">Clear all</button>
   </div>
+  <div class="sec-body">
 
   <!-- FILTER BAR -->
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
     <span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);white-space:nowrap;">Filter:</span>
-    <input type="text" id="jj-filter-ticker" placeholder="Ticker e.g. TSLA"
-      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);width:120px;outline:none;text-transform:uppercase;"
-      oninput="this.value=this.value.toUpperCase();jjRender()"/>
+    <select id="jj-filter-ticker" onchange="jjRender()"
+      style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;">
+      <option value="">All tickers</option>
+    </select>
     <select id="jj-filter-status" onchange="jjRender()"
       style="font-family:var(--mono);font-size:12px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;">
       <option value="">All trades</option>
@@ -607,6 +617,8 @@ tr:hover td{background:var(--surface2);}
       </thead>
       <tbody id="jj-body"><tr><td colspan="16" style="text-align:center;color:var(--text3);padding:32px;font-family:var(--mono);font-size:12px;">No trades yet. Log your first trade above or from a scanner alert card.</td></tr></tbody>
     </table>
+  </div>
+  </div>
   </div>
 
 </div>
@@ -836,9 +848,9 @@ tr:hover td{background:var(--surface2);}
   </div>
 
   <!-- FULL TABLE -->
-  <div id="br-results-section" style="display:none;">
-    <div class="section-title">Full results — all scanned stocks</div>
-    <div class="table-wrap">
+  <div id="br-results-section" style="display:none;" class="sec-collapsed">
+    <div class="section-title sec-toggle" onclick="toggleSec('br-results-section')"><span class="sec-chev" style="transform:rotate(-90deg);">▾</span>Full results — all scanned stocks</div>
+    <div class="sec-body"><div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -851,7 +863,7 @@ tr:hover td{background:var(--surface2);}
         </thead>
         <tbody id="br-results-body"></tbody>
       </table>
-    </div>
+    </div></div>
   </div>
 
   <div id="br-empty" class="empty">
@@ -2164,6 +2176,8 @@ function jjPrefillByKey(key){ const r=_resultStore[key]; if(r) jjPrefill(r); }
 
 // 6/6 = bright yellow, 5/6 = amber, 4/6 = white, 3/6 = muted
 function scoreBadgeClass(s){return s>=6?'s6':s>=5?'s5':s>=4?'s4':'s3';}
+function toggleSec(id){const el=document.getElementById(id);if(!el)return;const col=el.classList.toggle('sec-collapsed');const chev=el.querySelector('.sec-chev');if(chev)chev.style.transform=col?'rotate(-90deg)':'rotate(0deg)';}
+function jjPopulateTickerFilter(){const sel=document.getElementById('jj-filter-ticker');if(!sel)return;const cur=sel.value;const tickers=[...new Set(jjGetTrades().map(t=>t.ticker))].sort();sel.innerHTML='<option value="">All tickers</option>'+tickers.map(t=>`<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');}
 function toggleCard(id){const card=document.getElementById(id);if(!card)return;const collapsed=card.classList.toggle('collapsed');const chev=card.querySelector('.card-chev');if(chev)chev.style.transform=collapsed?'rotate(-90deg)':'rotate(0deg)';card.style.alignSelf=collapsed?'start':'';}
 function scoreInlineStyle(s){
   if(s>=6) return 'color:var(--yellow);font-weight:700;';
@@ -2785,6 +2799,7 @@ function jjDeleteTrade(id){
 }
 
 function jjRender(){
+  jjPopulateTickerFilter();
   const trades=jjGetTrades();
   const closed=trades.filter(t=>t.status==='Closed');
   const wins=closed.filter(t=>t.pnl>0);
