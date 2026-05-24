@@ -743,7 +743,7 @@ tr:hover td{background:var(--surface2);}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:4px;" id="qc-levels-row"></div>
 
         <!-- Verdict -->
-        <div id="qc-verdict" style="margin-top:10px;padding:8px 10px;border-radius:6px;font-size:12px;font-family:var(--mono);line-height:1.4;"></div>
+        <div id="qc-verdict" style="margin-top:10px;"></div>
 
         <!-- Log button -->
         <button class="btn btn-primary" id="qc-log-btn" onclick="qcLogTrade()" style="width:100%;margin-top:10px;font-size:13px;padding:7px 0;background:var(--green);border-color:var(--green);color:#000;display:none;">+ Log trade</button>
@@ -4098,21 +4098,8 @@ function qcRender(r){
       <div style="font-family:var(--mono);font-size:16px;font-weight:600;color:var(--green);">$${r.target2.toFixed(2)}</div>
     </div>`;
 
-  // Verdict
-  const verdictEl=document.getElementById('qc-verdict');
-  if(r.score>=5){
-    verdictEl.style.background='var(--green-bg)';verdictEl.style.color='var(--green)';verdictEl.style.border='1px solid var(--green-border)';
-    verdictEl.textContent='✓ Strong bull setup — '+r.score+'/6 signals aligned. Momentum confirmed, volume supporting.';
-  } else if(r.score>=4){
-    verdictEl.style.background='var(--amber-bg)';verdictEl.style.color='var(--amber)';verdictEl.style.border='1px solid var(--amber-border)';
-    verdictEl.textContent='⚡ Building momentum — '+r.score+'/6 signals. Watch for the remaining signals to fire.';
-  } else if(r.score>=2){
-    verdictEl.style.background='var(--surface2)';verdictEl.style.color='var(--text2)';verdictEl.style.border='1px solid var(--border2)';
-    verdictEl.textContent='⚠ Early/weak setup — only '+r.score+'/6 signals. Not ready for entry yet.';
-  } else {
-    verdictEl.style.background='var(--red-bg)';verdictEl.style.color='var(--red)';verdictEl.style.border='1px solid var(--red-border)';
-    verdictEl.textContent='✗ No bull run setup — '+r.score+'/6 signals. '+r.ticker+' does not show bull run characteristics right now.';
-  }
+  // Verdict — traffic-light pattern matching alert cards
+  document.getElementById('qc-verdict').innerHTML=buildVerdict(r,'bullrun');
 
   // Log button
   document.getElementById('qc-log-btn').style.display=r.score>=4?'block':'none';
