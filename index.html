@@ -234,6 +234,14 @@ tr:hover td{background:var(--surface2);}
     <button class="btn" onclick="toggleKeyReveal()" id="key-reveal-btn" title="Reveal/hide key">👁</button>
     <button class="btn" onclick="saveKey()" style="font-size:13px;">Save key</button>
     <div class="divider-v"></div>
+    <div style="font-size:12px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Account</div>
+    <div style="position:relative;">
+      <input type="number" id="account-size-input" placeholder="e.g. 10000"
+        style="font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:140px;outline:none;"
+        onchange="saveAccountSize()" onkeydown="if(event.key==='Enter')saveAccountSize()"/>
+    </div>
+    <span style="font-size:12px;color:var(--text3);font-family:var(--mono);">Total $ in your account</span>
+    <div class="divider-v"></div>
     <div style="font-size:12px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Push</div>
     <div id="push-card-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);"></div>
     <span id="push-card-status" style="font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text3);">OFF</span>
@@ -1900,6 +1908,7 @@ function renderResults(){
           ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
           ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
         </div>
+        ${buildVerdict(r,'reversal')}
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
           <div class="change ${chgClass}">${chgStr}</div>
@@ -2380,6 +2389,177 @@ async function maybeSendSMSForResult(r){
     pushAlertedThisScan[r.ticker]=r.score;
     sendPush(title,body);
   }
+}
+
+// ─── ACCOUNT SIZE ─────────────────────────────────────────────────────────
+function getAccountSize(){ return parseFloat(localStorage.getItem('account_size')||'0')||0; }
+function saveAccountSize(){
+  const val=parseFloat(document.getElementById('account-size-input').value)||0;
+  if(val>0){ localStorage.setItem('account_size',String(val)); log('Account size saved: $'+val.toLocaleString(),'good'); }
+}
+
+// ─── TRAFFIC-LIGHT VERDICT ────────────────────────────────────────────────
+function buildVerdict(r,mode){
+  const score=r.score;
+  const signals=r.signals;
+  const parts=[];
+  if(mode==='reversal'){
+    if(signals[0]) parts.push('deeply oversold (RSI '+r.rsi+')');
+    if(signals[1]) parts.push('MACD just turned bullish');
+    if(signals[2]) parts.push('trend lines crossing up');
+    if(signals[3]) parts.push('unusually high volume ('+r.volRatio+'×)');
+    if(signals[4]) parts.push('price at the bottom of its range');
+    if(signals[5]) parts.push('pulled back '+r.pullbackPct+'% — at a discount');
+  } else {
+    if(signals[0]) parts.push('momentum building (RSI '+r.rsi+')');
+    if(signals[1]) parts.push('buyers in control (MACD positive)');
+    if(signals[2]) parts.push('trending above its 50-period average');
+    if(signals[3]) parts.push('in a confirmed medium-term uptrend');
+    if(signals[4]) parts.push('volume is increasing');
+    if(signals[5]) parts.push('price coiling up — breakout may be building');
+  }
+  let icon,label,color,bg,border,subtext;
+  if(score>=6){
+    icon='🟢';label='STRONG BUY SETUP';color='var(--green)';bg='var(--green-bg)';border='var(--green-border)';
+    subtext=mode==='reversal'?'All 6 reversal signals firing — highest confidence setup the scanner can find.':'All 6 bull run signals confirmed — strong momentum with volume support.';
+  } else if(score>=5){
+    icon='🟢';label='BUY SETUP';color='var(--green)';bg='var(--green-bg)';border='var(--green-border)';
+    subtext=mode==='reversal'?'5 of 6 reversal signals confirmed — high confidence. Always verify live price with your broker before buying.':'5 of 6 bull run signals confirmed — strong setup. Wait for a green candle close before entering.';
+  } else if(score===4){
+    icon='🟡';label='WATCH — NOT YET';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='4 signals — promising but not enough confirmation. Add to your watchlist and wait for one more signal to fire.';
+  } else {
+    icon='🔴';label='SKIP — TOO EARLY';color='var(--red)';bg='var(--red-bg)';border='var(--red-border)';
+    subtext='Only '+score+' signal'+(score!==1?'s':'')+' met. Not enough evidence for a high-probability trade. Keep watching.';
+  }
+  const signalText=parts.length?'The stock is '+(parts.length===1?parts[0]:parts.slice(0,-1).join(', ')+', and '+parts[parts.length-1])+'.':'';
+  return`<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+      <span style="font-size:15px;">${icon}</span>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${color};letter-spacing:1px;">${label}</span>
+    </div>
+    ${signalText?`<div style="font-size:12px;color:${color};opacity:0.9;line-height:1.5;margin-bottom:4px;">${signalText}</div>`:''}
+    <div style="font-size:11px;color:var(--text3);line-height:1.4;">${subtext}</div>
+  </div>`;
+}
+
+// ─── POSITION SIZING ──────────────────────────────────────────────────────
+function buildPositionSizing(r){
+  const riskPerShare=parseFloat((r.price-r.stopLoss).toFixed(2));
+  if(riskPerShare<=0) return '';
+  const account=getAccountSize();
+  if(!account||account<=0){
+    return`<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--text3);">
+      💰 <span onclick="if(!configOpen)toggleConfig();setTimeout(()=>document.getElementById('account-size-input').focus(),200);" style="color:var(--blue);cursor:pointer;text-decoration:underline;">Set your account size in Config ⚙</span> to see how many shares to buy.
+    </div>`;
+  }
+  const maxRisk1=account*0.01;
+  const maxRisk2=account*0.02;
+  const shares1=Math.max(1,Math.floor(maxRisk1/riskPerShare));
+  const shares2=Math.max(1,Math.floor(maxRisk2/riskPerShare));
+  const invest1=(shares1*r.price).toFixed(0);
+  const invest2=(shares2*r.price).toFixed(0);
+  return`<div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#3b82f6;margin-bottom:8px;">💰 How many shares? — $${account.toLocaleString()} account</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+      <div style="background:var(--surface);border-radius:6px;padding:8px;">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">Conservative (risk 1%)</div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--text);">${shares1} shares</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono);">~$${invest1} invested</div>
+        <div style="font-size:10px;color:var(--red);font-family:var(--mono);">Max loss: $${maxRisk1.toFixed(0)}</div>
+      </div>
+      <div style="background:var(--surface);border-radius:6px;padding:8px;">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">Standard (risk 2%)</div>
+        <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--text);">${shares2} shares</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono);">~$${invest2} invested</div>
+        <div style="font-size:10px;color:var(--red);font-family:var(--mono);">Max loss: $${maxRisk2.toFixed(0)}</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">Stop at $${r.stopLoss.toFixed(2)} · Risk per share: $${riskPerShare.toFixed(2)}</div>
+  </div>`;
+}
+
+// ─── WIN RATE CONTEXT ─────────────────────────────────────────────────────
+function buildWinRateContext(r){
+  const riskPerShare=r.price-r.stopLoss;
+  if(riskPerShare<=0) return '';
+  const rewardPerShare=r.target2-r.price;
+  const rr=rewardPerShare/riskPerShare;
+  const breakEven=Math.round(1/(1+rr)*100);
+  return`<div style="font-size:11px;color:var(--text2);font-family:var(--mono);padding:8px 10px;background:var(--surface2);border-radius:6px;line-height:1.7;margin-top:4px;margin-bottom:10px;">
+    <strong style="color:var(--text);">📐 Why this trade makes sense mathematically:</strong> At ${rr.toFixed(1)}:1 reward-to-risk, you only need to win <strong style="color:var(--amber);">${breakEven}%</strong> of these trades to break even. If the scanner finds good setups more than ${breakEven}% of the time, you profit long-term — even with more losses than wins.
+  </div>`;
+}
+
+// ─── TODAY'S CONDITIONS BANNER ────────────────────────────────────────────
+function updateConditionsBanner(){
+  const now=new Date();
+  const etFull=now.toLocaleString('en-US',{timeZone:'America/New_York'});
+  const et=new Date(etFull);
+  const h=et.getHours(),m=et.getMinutes(),d=et.getDay();
+  const isWeekday=d>=1&&d<=5;
+  const isMarketHours=isWeekday&&(h>9||(h===9&&m>=30))&&h<16;
+  const isPrime=isWeekday&&((h===9&&m>=45)||(h>=10&&h<=11)||(h>=14&&h<16));
+
+  let timeLabel,timeColor,timeNote;
+  if(!isWeekday||h<4||h>=20){
+    timeLabel='Market Closed';timeColor='var(--text3)';
+    timeNote='Signals based on last close. Recheck at next market open.';
+  } else if(!isMarketHours&&h<9){
+    timeLabel='Pre-Market';timeColor='var(--amber)';
+    timeNote='Wait for 9:45am ET before acting on signals — price can gap at open.';
+  } else if(!isMarketHours&&h>=16){
+    timeLabel='After-Hours';timeColor='var(--amber)';
+    timeNote="Signals based on today's close. Verify at tomorrow's open.";
+  } else if(isPrime){
+    timeLabel='Market Open — Best Hours';timeColor='var(--green)';
+    timeNote='9:45–11:30am and 2:00–3:30pm ET are the highest-volume trading windows.';
+  } else {
+    timeLabel='Market Open';timeColor='var(--green)';
+    timeNote='Market is active. Signals based on live 15-min bars.';
+  }
+
+  let qqqHtml;
+  if(l2QQQChange!==null){
+    const qc=l2QQQChange>=0.5?'var(--green)':l2QQQChange<=-0.5?'var(--red)':'var(--amber)';
+    const qn=l2QQQChange>=0.5?'Market is rising — good for long trades':l2QQQChange<=-0.5?'Market is falling — use smaller position sizes or wait':'Market is flat — neutral conditions';
+    qqqHtml=`<div style="display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);">Market (QQQ today):</span>
+      <strong style="font-family:var(--mono);font-size:13px;color:${qc};">${l2QQQChange>=0?'+':''}${l2QQQChange}%</strong>
+      <span style="font-size:11px;color:${qc};">${qn}</span>
+    </div>`;
+  } else {
+    qqqHtml=`<div style="font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono);">Run a scan to load market direction (QQQ trend).</div>`;
+  }
+
+  let icon,label,color,bg,border;
+  if(!isMarketHours){
+    icon='⚫';label='Market is closed';color='var(--text3)';bg='var(--surface2)';border='var(--border)';
+  } else if(l2QQQChange!==null&&l2QQQChange<=-1){
+    icon='🔴';label='Caution — market is falling today';color='var(--red)';bg='var(--red-bg)';border='var(--red-border)';
+  } else if(l2QQQChange!==null&&l2QQQChange>=0.5){
+    icon='🟢';label='Good conditions — market is rising today';color='var(--green)';bg='var(--green-bg)';border='var(--green-border)';
+  } else {
+    icon='🟡';label='Trade carefully — run a scan to assess market direction';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+  }
+
+  const html=`<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;">
+      <span style="font-size:18px;">${icon}</span>
+      <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${color};">${label}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);">Time:</span>
+      <strong style="font-family:var(--mono);font-size:12px;color:${timeColor};">${timeLabel}</strong>
+      <span style="font-size:11px;color:var(--text3);">${timeNote}</span>
+    </div>
+    ${qqqHtml}
+  </div>`;
+
+  ['conditions-banner-bullrun','conditions-banner-scanner'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=html;
+  });
 }
 
 // ---- INDICATOR PANEL — shown below each alert card ----
@@ -3957,6 +4137,13 @@ function qcLogTrade(){
 // On load: sync push button state if permission already granted
 updatePushBtn();
 updateEmptyState();
+updateConditionsBanner();
+// Restore saved account size into config input
+(function(){
+  const saved=getAccountSize();
+  const el=document.getElementById('account-size-input');
+  if(el&&saved>0) el.value=saved;
+})();
 // Ensure scan/auto/clear buttons hidden — Bull Run is default tab, not Reversal
 ['scan-btn','auto-btn','auto-label','clear-btn'].forEach(id=>{
   const el=document.getElementById(id);
