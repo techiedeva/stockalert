@@ -2164,7 +2164,7 @@ function jjPrefillByKey(key){ const r=_resultStore[key]; if(r) jjPrefill(r); }
 
 // 6/6 = bright yellow, 5/6 = amber, 4/6 = white, 3/6 = muted
 function scoreBadgeClass(s){return s>=6?'s6':s>=5?'s5':s>=4?'s4':'s3';}
-function toggleCard(id){const card=document.getElementById(id);if(!card)return;const collapsed=card.classList.toggle('collapsed');const chev=card.querySelector('.card-chev');if(chev)chev.style.transform=collapsed?'rotate(-90deg)':'rotate(0deg)';}
+function toggleCard(id){const card=document.getElementById(id);if(!card)return;const collapsed=card.classList.toggle('collapsed');const chev=card.querySelector('.card-chev');if(chev)chev.style.transform=collapsed?'rotate(-90deg)':'rotate(0deg)';card.style.alignSelf=collapsed?'start':'';}
 function scoreInlineStyle(s){
   if(s>=6) return 'color:var(--yellow);font-weight:700;';
   if(s>=5) return 'color:var(--amber);font-weight:600;';
