@@ -276,6 +276,7 @@ tr:hover td{background:var(--surface2);}
     <span>Paste your <strong>Twelve Data API key</strong> above and click <strong>Run scan</strong>. Get a free key at <a href="https://twelvedata.com" target="_blank" style="color:inherit;text-decoration:underline;">twelvedata.com</a> (800 calls/day free).</span>
   </div>
 
+  <div id="conditions-banner-scanner"></div>
   <!-- WATCHLIST MANAGER -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
@@ -698,6 +699,7 @@ tr:hover td{background:var(--surface2);}
 <div id="tab-bullrun" class="tab-page active">
 <div class="container">
 
+  <div id="conditions-banner-bullrun"></div>
   <!-- ⚡ QUICK CHECK PANEL -->
   <div style="background:var(--surface);border:1px solid var(--green-border);border-radius:12px;padding:14px;margin-bottom:16px;">
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:10px;">⚡ Quick Bull Run Check — any symbol</div>
@@ -1742,6 +1744,7 @@ async function startScan(){
       const n=closes.length;
       l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
       log(`L2 VIX: ${l2VIX?l2VIX.toFixed(1):'unavail'} · QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · Min score: ${l2MinScore}/6`,'good');
+      updateConditionsBanner();
     }
   }catch(e){ log('QQQ benchmark failed: '+e.message,'warn'); }
   await sleep(8000); // pace gap before phase 2
@@ -1925,6 +1928,8 @@ function renderResults(){
         ${buildIndicatorPanel(r)}
         ${buildSRPanel(r)}
         ${buildEntryZonePanel(r)}
+        ${buildPositionSizing(r)}
+        ${buildWinRateContext(r)}
         <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
       </div>`;
     });
@@ -3411,6 +3416,7 @@ function exRenderAlerts(){
       ${r.l2?buildVIXBanner():''}
       ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
+      ${buildVerdict(r,'reversal')}
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
@@ -3425,6 +3431,8 @@ function exRenderAlerts(){
       ${buildIndicatorPanel(r)}
       ${buildSRPanel(r)}
       ${buildEntryZonePanel(r)}
+      ${buildPositionSizing(r)}
+      ${buildWinRateContext(r)}
       <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;">+ Log trade</button>
     </div>`;
   });
@@ -3634,6 +3642,7 @@ function brRenderCards(){
         ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
         ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
       </div>
+      ${buildVerdict(r,'bullrun')}
       <div class="price-row">
         <div class="price">$${r.price.toFixed(2)}</div>
         <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
@@ -3651,6 +3660,8 @@ function brRenderCards(){
       ${indPanel}
       ${buildSRPanel(r)}
       ${buildEntryZonePanel(r)}
+      ${buildPositionSizing(r)}
+      ${buildWinRateContext(r)}
       <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:10px;font-size:13px;padding:6px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>`;
   }
@@ -3790,6 +3801,7 @@ async function brStartScan(){
       const n=closes.length;
       l2QQQChange=parseFloat(((closes[n-1]-closes[n-2])/closes[n-2]*100).toFixed(2));
       brLog(`L2 VIX: ${l2VIX?l2VIX.toFixed(1):'unavail'} · QQQ: ${l2QQQChange>=0?'+':''}${l2QQQChange}% · Min score: ${l2MinScore}/6`,'good');
+      updateConditionsBanner();
     }
   }catch(e){ brLog('QQQ benchmark failed: '+e.message,'warn'); }
   await sleep(8000); // pace gap before phase 2
