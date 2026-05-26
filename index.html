@@ -923,7 +923,14 @@ tr:hover td{background:var(--surface2);}
       <div style="font-size:12px;color:var(--text3);">Click "👁 Watch PA" on any Bull Run scanner card, or type a ticker above and click Add.</div>
     </div>
     <div id="pa-status-section" style="display:none;margin-bottom:20px;">
-      <div style="font-size:12px;font-weight:600;color:var(--text2);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Monitoring Status</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Monitoring Status</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+        <span style="font-weight:600;color:var(--text2);margin-right:4px;">Next Step guide:</span>
+        <span><span style="color:var(--green);">●</span> Green = enter now</span>
+        <span><span style="color:var(--amber);">●</span> Amber = watch next candle</span>
+        <span><span style="color:var(--red);">●</span> Red = skip this setup</span>
+        <span><span style="color:var(--text3);">●</span> Grey = not a setup yet</span>
+      </div>
       <div class="table-wrap">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
@@ -933,7 +940,7 @@ tr:hover td{background:var(--surface2);}
               <th style="padding:8px 12px;text-align:left;font-weight:500;">At Level</th>
               <th style="padding:8px 12px;text-align:right;font-weight:500;">Volume</th>
               <th style="padding:8px 12px;text-align:right;font-weight:500;">Bull Score</th>
-              <th style="padding:8px 12px;text-align:right;font-weight:500;">Last Check</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Next Step</th>
               <th style="padding:8px 12px;text-align:center;font-weight:500;">Remove</th>
             </tr>
           </thead>
@@ -4580,13 +4587,16 @@ function paRender(){
       const lvStr=r.nearestLevel?r.nearestLevel.name:(r.pattern&&r.pattern.pattern==='Break of Structure'?'BoS':'—');
       const sigClr=r.hasSignal?'var(--green)':'var(--text2)';
       const scClr=r.brScore>=5?'var(--green)':r.brScore>=4?'var(--amber)':'var(--text3)';
+      const guide=paGetActionGuide(r);
       return`<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:8px 12px;font-weight:600;font-family:var(--mono);">${r.ticker}</td>
-        <td style="padding:8px 12px;color:${sigClr};">${r.hasSignal?'★ ':''}${patStr}</td>
+        <td style="padding:8px 12px;font-weight:600;font-family:var(--mono);">${r.ticker}<div style="font-size:10px;color:var(--text3);font-weight:400;">${r.checkedAt}</div></td>
+        <td style="padding:8px 12px;color:${sigClr};">${r.hasSignal?'★ ':''}${patStr}${r.pattern?'<div style="font-size:10px;color:var(--text3);">'+r.pattern.strength+'</div>':''}</td>
         <td style="padding:8px 12px;color:${r.nearestLevel?'var(--green)':'var(--text3)'};">${lvStr}</td>
         <td style="padding:8px 12px;text-align:right;color:${r.volConfirmed?'var(--green)':'var(--text2)'};">${r.volRatio}×</td>
         <td style="padding:8px 12px;text-align:right;color:${scClr};">${r.brScore}/6</td>
-        <td style="padding:8px 12px;text-align:right;color:var(--text3);font-family:var(--mono);font-size:11px;">${r.checkedAt}</td>
+        <td style="padding:8px 12px;max-width:320px;">
+          <span style="color:${guide.color};font-size:12px;line-height:1.5;">${guide.text}</span>
+        </td>
         <td style="padding:8px 12px;text-align:center;">
           <button class="btn" onclick="paRemoveTicker('${r.ticker}')" style="font-size:11px;padding:3px 8px;color:var(--red);border-color:var(--border);">×</button>
         </td>
@@ -4595,6 +4605,54 @@ function paRender(){
   }else{
     statusSec.style.display='none';
   }
+}
+
+// ---- PA ACTION GUIDE — plain-English next step for novice traders ----
+function paGetActionGuide(r){
+  if(r.hasSignal)
+    return{text:'★ Enter now — all 3 conditions met. Verify live price with your broker first.',color:'var(--green)'};
+
+  const atResistance=r.nearestLevel&&r.nearestLevel.name==='Resistance';
+  const atSupport=r.nearestLevel&&(r.nearestLevel.name==='Support'||r.nearestLevel.name==='Support 2');
+  const atVWAP=r.nearestLevel&&r.nearestLevel.name==='VWAP';
+  const atMA=r.nearestLevel&&(r.nearestLevel.name==='MA50'||r.nearestLevel.name==='MA200');
+  const goodLevel=atSupport||atVWAP||atMA;
+  const pat=r.pattern?r.pattern.pattern:null;
+  const lvl=r.nearestLevel?r.nearestLevel.name:null;
+  const volStr=r.volRatio+'× (need 1.3×)';
+
+  if(r.brScore<4)
+    return{text:'Skip — trend too weak ('+r.brScore+'/6 bull score). Wait until Bull Score reaches 4+.',color:'var(--red)'};
+
+  if(atResistance){
+    if(pat==='Break of Structure')
+      return{text:'Watch — price broke above resistance. Wait for it to pull back and hold that level as new support, then enter.',color:'var(--amber)'};
+    return{text:'Skip — price is at resistance where sellers push back. Need price at Support, VWAP or MA50 to consider a buy.',color:'var(--red)'};
+  }
+
+  if(!pat&&!lvl)
+    return{text:'Waiting — price is mid-range with no pattern and no key level nearby. Not a valid setup yet.',color:'var(--text3)'};
+  if(!pat&&goodLevel)
+    return{text:'Price is at '+lvl+' but no candle pattern yet. Watch the next 15-min candle close for a Hammer or Bullish Engulfing.',color:'var(--amber)'};
+  if(!pat)
+    return{text:'No candle pattern detected yet. Not a valid setup — keep monitoring.',color:'var(--text3)'};
+
+  if(pat&&!r.nearestLevel)
+    return{text:'Pattern detected but price is not near any key level. Wait for price to pull back to Support, VWAP or MA50.',color:'var(--text3)'};
+
+  if(pat&&goodLevel&&!r.volConfirmed){
+    if(pat==='Inside Bar')
+      return{text:lvl+': Price is coiling (Inside Bar). Enter when the next candle closes above this bar\'s high with volume ≥1.3×. Now: '+volStr+'.',color:'var(--amber)'};
+    if(pat==='Hammer'||pat==='Pin Bar')
+      return{text:lvl+': Rejection candle formed — but volume is low ('+volStr+'). Enter if the next candle closes green above this bar\'s high.',color:'var(--amber)'};
+    if(pat==='Bullish Engulfing')
+      return{text:lvl+': Engulfing candle formed — volume needs to pick up ('+volStr+'). Enter if the next candle stays green with rising volume.',color:'var(--amber)'};
+    if(pat==='Break of Structure')
+      return{text:lvl+': Price broke above the prior high — volume is low ('+volStr+'). Wait for volume to confirm before entering.',color:'var(--amber)'};
+    return{text:lvl+': '+pat+' forming — waiting for volume surge. Now: '+volStr+'.',color:'var(--amber)'};
+  }
+
+  return{text:'Monitoring — conditions not fully met yet. Check back on the next 15-min candle.',color:'var(--text3)'};
 }
 
 function paBuildAlertCard(r){
