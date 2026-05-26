@@ -206,6 +206,7 @@ tr:hover td{background:var(--surface2);}
     <button class="tab-btn active" onclick="switchTab('bullrun',this)" title="Find stocks showing early bull run characteristics — momentum building, trend confirmed">🚀 Bull Run <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Rising momentum</span></button>
     <button class="tab-btn" onclick="switchTab('scanner',this)" title="Find falling stocks ready to reverse and bounce back up">📉 Reversal <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Catch the bounce</span></button>
     <button class="tab-btn" onclick="switchTab('exchange',this)" title="Scan NASDAQ+NYSE stocks under $50 for launch alerts">🔍 Exchange <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Discover alerts</span></button>
+    <button class="tab-btn" id="pa-tab-btn" onclick="switchTab('pamonitor',this)" title="Monitor price action entry signals — candle patterns at key levels with volume">👁 PA Monitor <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Entry signals</span></button>
     <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -883,6 +884,68 @@ tr:hover td{background:var(--surface2);}
 
 </div>
 </div><!-- end tab-bullrun -->
+
+<!-- PA MONITOR TAB -->
+<div id="tab-pamonitor" class="tab-page">
+  <div style="max-width:1300px;margin:0 auto;padding:24px 20px;">
+    <div style="margin-bottom:20px;">
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;">👁 Price Action Monitor</div>
+      <div style="font-size:13px;color:var(--text2);">Watches your stock list for price action entry signals — candle patterns (Hammer, Pin Bar, Bullish Engulfing, Inside Bar, Break of Structure) forming at key levels (Support, VWAP, MA50, MA200) with volume confirmation. Add stocks from the Bull Run scanner.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <input id="pa-add-input" type="text" placeholder="Add ticker (e.g. AAPL)" maxlength="10"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-family:var(--mono);font-size:13px;color:var(--text);width:160px;outline:none;"
+        onkeydown="if(event.key==='Enter')paAddManual()"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button class="btn" onclick="paAddManual()">+ Add</button>
+      <button class="btn btn-danger" onclick="paClearWatchlist()" style="font-size:12px;">Clear All</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" id="pa-scan-btn" onclick="paStartScan()" style="background:var(--accent);border-color:var(--accent);color:#000;">▶ Scan watchlist</button>
+      <button class="btn" id="pa-auto-btn" onclick="paToggleAuto()">Auto: Off</button>
+      <span style="font-size:11px;color:var(--text3);font-family:var(--mono);" id="pa-auto-label"></span>
+      <span id="pa-last-scan" style="font-size:11px;color:var(--text3);font-family:var(--mono);"></span>
+    </div>
+    <div id="pa-watchlist-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;min-height:36px;align-items:center;">
+      <div style="font-size:12px;color:var(--text3);font-family:var(--mono);">No stocks in watchlist. Click "👁 Watch PA" on any Bull Run card, or type a ticker above.</div>
+    </div>
+    <div id="pa-alerts-section" style="display:none;margin-bottom:24px;">
+      <div style="font-size:12px;font-weight:600;color:var(--green);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">★ PA Entry Signals</div>
+      <div id="pa-alert-cards" class="alert-cards"></div>
+    </div>
+    <div id="pa-no-alerts" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:28px;text-align:center;margin-bottom:20px;">
+      <div style="font-size:32px;margin-bottom:8px;">👁</div>
+      <div style="font-size:14px;color:var(--text2);margin-bottom:4px;">No PA entry signals yet.</div>
+      <div style="font-size:12px;color:var(--text3);">Waiting for a candle pattern to form at a key level with volume confirmation. Auto-scan checks every 15 min.</div>
+    </div>
+    <div id="pa-empty" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:28px;text-align:center;margin-bottom:20px;">
+      <div style="font-size:32px;margin-bottom:8px;">👁</div>
+      <div style="font-size:14px;color:var(--text2);margin-bottom:8px;">Add stocks to start monitoring for price action entry signals.</div>
+      <div style="font-size:12px;color:var(--text3);">Click "👁 Watch PA" on any Bull Run scanner card, or type a ticker above and click Add.</div>
+    </div>
+    <div id="pa-status-section" style="display:none;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Monitoring Status</div>
+      <div class="table-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--surface2);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);">
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Ticker</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Pattern</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">At Level</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;">Volume</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;">Bull Score</th>
+              <th style="padding:8px 12px;text-align:right;font-weight:500;">Last Check</th>
+              <th style="padding:8px 12px;text-align:center;font-weight:500;">Remove</th>
+            </tr>
+          </thead>
+          <tbody id="pa-status-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="log-wrap" id="pa-log-wrap" style="margin-top:16px;">
+      <div class="log-line">PA Monitor ready. Add stocks from Bull Run scanner, then click Scan watchlist.</div>
+    </div>
+  </div>
+</div><!-- end tab-pamonitor -->
 
 <script>
 // ---- CUSTOM WATCHLIST ----
@@ -3728,6 +3791,7 @@ function brRenderCards(){
         ${buildPositionSizing(r)}
         ${buildWinRateContext(r)}
         <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+        <button class="btn" onclick="paAddTicker('${r.ticker}','${(r.name||'').replace(/['"\\]/g,'')}');" style="width:100%;margin-top:6px;font-size:13px;padding:8px 0;color:var(--accent);border-color:var(--border);">👁 Watch PA</button>
       </div>
     </div>`;
   }
@@ -4214,6 +4278,362 @@ updateConditionsBanner();
   const el=document.getElementById(id);
   if(el) el.style.display='none';
 });
+
+// ---- PA MONITOR — Price Action Entry Signal Tracker ----
+let paWatchlist=loadPAWatchlist();
+let paAlerts=[];
+let paAbort=false;
+let paAutoTimer=null;
+let paAutoOn=false;
+
+function loadPAWatchlist(){
+  try{return JSON.parse(localStorage.getItem('pa_watchlist_v1')||'[]');}catch(e){return[];}
+}
+function savePAWatchlist(){
+  localStorage.setItem('pa_watchlist_v1',JSON.stringify(paWatchlist.map(s=>({ticker:s.ticker,name:s.name,addedAt:s.addedAt}))));
+}
+
+function paAddTicker(ticker,name){
+  ticker=(ticker||'').toUpperCase().trim();
+  if(!ticker) return;
+  if(paWatchlist.find(s=>s.ticker===ticker)){
+    paLog(ticker+' is already in the PA watchlist.','warn');
+    switchToPATab(); return;
+  }
+  paWatchlist.push({ticker,name:name||ticker,addedAt:new Date().toLocaleTimeString()});
+  savePAWatchlist();
+  paLog(ticker+' added to PA watchlist.','good');
+  paRenderWatchlist();
+  switchToPATab();
+}
+
+function paAddManual(){
+  const inp=document.getElementById('pa-add-input');
+  const t=(inp.value||'').toUpperCase().trim();
+  if(!t) return;
+  paAddTicker(t,t);
+  inp.value='';
+}
+
+function paRemoveTicker(ticker){
+  paWatchlist=paWatchlist.filter(s=>s.ticker!==ticker);
+  savePAWatchlist();
+  paRenderWatchlist(); paRender();
+  paLog(ticker+' removed from PA watchlist.');
+}
+
+function paClearWatchlist(){
+  if(!paWatchlist.length) return;
+  if(!confirm('Clear all stocks from PA watchlist?')) return;
+  paWatchlist=[]; paAlerts=[];
+  savePAWatchlist();
+  paRenderWatchlist(); paRender();
+  paLog('PA watchlist cleared.');
+}
+
+function switchToPATab(){
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-pamonitor').classList.add('active');
+  document.getElementById('pa-tab-btn').classList.add('active');
+}
+
+function paLog(msg,cls){
+  const wrap=document.getElementById('pa-log-wrap');
+  if(!wrap) return;
+  const line=document.createElement('div');
+  line.className='log-line '+(cls||'');
+  line.textContent=msg;
+  wrap.appendChild(line);
+  wrap.scrollTop=wrap.scrollHeight;
+}
+
+// ---- CANDLE PATTERN DETECTION ----
+function detectCandlePattern(opens,highs,lows,closes){
+  const n=closes.length;
+  if(n<3) return null;
+  const o=opens[n-1],h=highs[n-1],l=lows[n-1],c=closes[n-1];
+  const ph=highs[n-2],pl=lows[n-2],pc=closes[n-2],po=opens[n-2];
+  const body=Math.abs(c-o),range=h-l;
+  if(range<0.001) return null;
+  const lowerWick=Math.min(o,c)-l,upperWick=h-Math.max(o,c);
+  const priorBody=Math.abs(pc-po);
+  // Pin Bar: tiny body, lower wick ≥ 3× body (strong rejection)
+  if(body/range<0.35&&lowerWick>=3*body)
+    return{pattern:'Pin Bar',strength:'Strong'};
+  // Hammer: small body, lower wick ≥ 2× body, little upper wick
+  if(body/range<0.4&&lowerWick>=2*body&&upperWick<=body*0.8)
+    return{pattern:'Hammer',strength:'Moderate'};
+  // Bullish Engulfing: green candle body engulfs prior red candle body
+  if(c>o&&pc<po&&priorBody>0&&body>priorBody&&o<=pc&&c>=po)
+    return{pattern:'Bullish Engulfing',strength:'Strong'};
+  // Inside Bar: current candle fully within prior candle range (coiling)
+  if(h<=ph&&l>=pl)
+    return{pattern:'Inside Bar',strength:'Moderate'};
+  // Break of Structure: green candle closes above prior 5-bar swing high
+  if(n>=6&&c>o){
+    const prior5High=Math.max(...highs.slice(n-6,n-1));
+    if(c>prior5High) return{pattern:'Break of Structure',strength:'Strong'};
+  }
+  return null;
+}
+
+// ---- LEVEL CONFLUENCE ----
+function findNearestLevel(price,sr,vwap,ma50,ma200){
+  const tol=price*0.008;
+  const levels=[
+    {name:'Support',   val:sr&&sr.support&&sr.support[0]    ?sr.support[0].price   :null},
+    {name:'VWAP',      val:vwap},
+    {name:'MA50',      val:ma50},
+    {name:'MA200',     val:ma200},
+    {name:'Support 2', val:sr&&sr.support&&sr.support[1]    ?sr.support[1].price   :null},
+    {name:'Resistance',val:sr&&sr.resistance&&sr.resistance[0]?sr.resistance[0].price:null},
+  ].filter(lv=>lv.val!=null&&lv.val>0);
+  let nearest=null,minDist=Infinity;
+  for(const lv of levels){
+    const dist=Math.abs(price-lv.val);
+    if(dist<=tol&&dist<minDist){minDist=dist;nearest=lv;}
+  }
+  return nearest;
+}
+
+// ---- PA STOCK ANALYSIS ----
+function analyzePAStock(ticker,name,values){
+  const vals=[...values].reverse();
+  const opens =vals.map(v=>parseFloat(v.open));
+  const closes=vals.map(v=>parseFloat(v.close));
+  const highs =vals.map(v=>parseFloat(v.high));
+  const lows  =vals.map(v=>parseFloat(v.low));
+  const vols  =vals.map(v=>parseFloat(v.volume)||0);
+  const n=closes.length;
+  const cp=closes[n-1];
+
+  const pattern=detectCandlePattern(opens,highs,lows,closes);
+  const ma50arr=calcEMA(closes,50),ma200arr=calcEMA(closes,200);
+  const cMA50=lastVal(ma50arr),cMA200=lastVal(ma200arr);
+  const{up:bbUp,lo:bbLo}=calcBB(closes,20,2);
+  const{vwap}=calcVWAP(highs,lows,closes,vols);
+  const sr=calcSupportResistance(highs,lows,closes,bbUp,bbLo,3);
+  const nearestLevel=findNearestLevel(cp,sr,vwap,cMA50,cMA200);
+
+  // Volume: last 3 bars vs 20-bar rolling avg
+  const recentVol=vols.slice(-3).reduce((a,b)=>a+b,0)/3;
+  const avgVol=vols.slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,vols.length);
+  const volRatio=avgVol>0?parseFloat((recentVol/avgVol).toFixed(2)):1;
+  const volConfirmed=volRatio>=1.3;
+
+  const atr=calcATR(highs,lows,closes,14);
+  const stopLoss=parseFloat((cp-1.5*atr).toFixed(2));
+  const risk=cp-stopLoss;
+  const target2=parseFloat((cp+risk*2).toFixed(2));
+
+  const br=analyzeBullRun(ticker,name,values);
+  const isBoS=pattern&&pattern.pattern==='Break of Structure';
+  const hasSignal=!!(pattern&&(nearestLevel||isBoS)&&volConfirmed);
+
+  return{
+    ticker,name,price:cp,score:br.score,
+    pattern,nearestLevel,volRatio,volConfirmed,hasSignal,
+    stopLoss,target2,riskPerShare:parseFloat(risk.toFixed(2)),
+    atr:parseFloat(atr.toFixed(3)),
+    brScore:br.score,brSignals:br.signals,
+    rsi:br.rsi,pullbackPct:null,
+    ma50:cMA50?parseFloat(cMA50.toFixed(2)):null,
+    ma200:cMA200?parseFloat(cMA200.toFixed(2)):null,
+    vwap:vwap||null,sr,
+    checkedAt:new Date().toLocaleTimeString(),
+  };
+}
+
+async function paFetchBars(ticker){
+  if(paAbort) throw new Error('aborted');
+  const key=getKey();
+  if(!key) throw new Error('no_key');
+  for(const exchange of ['','NASDAQ','NYSE','AMEX']){
+    const params={symbol:ticker,interval:'15min',outputsize:'200'};
+    if(exchange) params.exchange=exchange;
+    const qs=new URLSearchParams({...params,apikey:key}).toString();
+    try{
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data=await res.json();
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
+        continue;
+      }
+      if(data.values&&data.values.length>=50) return data.values;
+    }catch(e){
+      if(['invalid_key','no_key','aborted','rate_limit'].includes(e.message)) throw e;
+    }
+  }
+  return null;
+}
+
+async function paStartScan(){
+  if(paWatchlist.length===0){paLog('PA watchlist is empty. Add stocks first.','warn');return;}
+  const key=getKey();
+  if(!key){alert('Paste your Twelve Data API key in Config first.');return;}
+  paAbort=false; paAlerts=[];
+  const btn=document.getElementById('pa-scan-btn');
+  btn.disabled=true; btn.textContent='⏳ Scanning...';
+  setStatus('scanning','PA Monitor scanning...');
+  document.getElementById('pa-alerts-section').style.display='none';
+  document.getElementById('pa-no-alerts').style.display='none';
+  document.getElementById('pa-empty').style.display='none';
+
+  for(let i=0;i<paWatchlist.length;i++){
+    if(paAbort) break;
+    const{ticker,name}=paWatchlist[i];
+    setStatus('scanning',`PA: ${ticker} (${i+1}/${paWatchlist.length})`);
+    try{
+      const values=await paFetchBars(ticker);
+      if(!values){paLog(ticker+': No data available.','warn');continue;}
+      const result=analyzePAStock(ticker,name,values);
+      paWatchlist[i]={...paWatchlist[i],lastResult:result};
+      if(result.hasSignal){
+        paAlerts.push(result);
+        const lvName=result.nearestLevel?result.nearestLevel.name:'BoS';
+        paLog(`${ticker}: ★ PA SIGNAL — ${result.pattern.pattern} (${result.pattern.strength}) at ${lvName} · Vol ${result.volRatio}× · Bull ${result.brScore}/6`,'good');
+      }else{
+        const why=[];
+        if(!result.pattern) why.push('no pattern');
+        else why.push(result.pattern.pattern);
+        if(!result.nearestLevel&&(!result.pattern||result.pattern.pattern!=='Break of Structure')) why.push('not at level');
+        if(!result.volConfirmed) why.push('vol '+result.volRatio+'× (need 1.3×)');
+        paLog(`${ticker}: Watching — ${why.join(' · ')} · Bull ${result.brScore}/6`);
+      }
+      if(i<paWatchlist.length-1) await sleep(8000);
+    }catch(e){
+      if(['invalid_key','no_key','aborted','rate_limit'].includes(e.message)){paLog('Scan stopped: '+e.message,'warn');break;}
+      paLog(ticker+': Error — '+e.message,'warn');
+    }
+  }
+
+  btn.disabled=false; btn.textContent='▶ Scan watchlist';
+  document.getElementById('pa-last-scan').textContent='Last: '+new Date().toLocaleTimeString();
+  setStatus('ok','PA scan complete');
+  paRender();
+}
+
+function paToggleAuto(){
+  paAutoOn=!paAutoOn;
+  const btn=document.getElementById('pa-auto-btn');
+  const lbl=document.getElementById('pa-auto-label');
+  if(paAutoOn){
+    paAutoTimer=setInterval(()=>paStartScan(),15*60*1000);
+    btn.textContent='Auto: On';btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';
+    lbl.textContent='Next scan in 15 min';
+    paLog('PA auto-scan enabled — runs every 15 minutes.','good');
+  }else{
+    clearInterval(paAutoTimer);
+    btn.textContent='Auto: Off';btn.style.color='';btn.style.borderColor='';
+    lbl.textContent='';
+    paLog('PA auto-scan disabled.');
+  }
+}
+
+function paRenderWatchlist(){
+  const container=document.getElementById('pa-watchlist-chips');
+  if(!container) return;
+  if(paWatchlist.length===0){
+    container.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--mono);">No stocks in watchlist. Click "👁 Watch PA" on any Bull Run card, or type a ticker above.</div>';
+    document.getElementById('pa-empty').style.display='block';
+    return;
+  }
+  document.getElementById('pa-empty').style.display='none';
+  container.innerHTML=paWatchlist.map(s=>{
+    const r=s.lastResult;
+    const sig=r&&r.hasSignal;
+    const clr=sig?'var(--green)':'var(--accent)';
+    const bdr=sig?'var(--green-border)':'var(--border)';
+    return`<div style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid ${bdr};border-radius:20px;padding:5px 12px 5px 10px;font-family:var(--mono);font-size:12px;">
+      ${sig?'<span style="color:var(--green);font-size:11px;">★</span>':''}
+      <span style="color:${clr};font-weight:600;">${s.ticker}</span>
+      <span style="color:var(--text3);font-size:10px;">${sig?'SIGNAL':r?'watching':'pending'}</span>
+      <span onclick="paRemoveTicker('${s.ticker}')" style="color:var(--text3);cursor:pointer;font-size:15px;line-height:1;margin-left:2px;" title="Remove">×</span>
+    </div>`;
+  }).join('');
+}
+
+function paRender(){
+  paRenderWatchlist();
+  const alertsSec=document.getElementById('pa-alerts-section');
+  const noAlerts=document.getElementById('pa-no-alerts');
+  const cards=document.getElementById('pa-alert-cards');
+  if(paAlerts.length>0){
+    alertsSec.style.display='block'; noAlerts.style.display='none';
+    cards.innerHTML=paAlerts.map(r=>paBuildAlertCard(r)).join('');
+  }else{
+    alertsSec.style.display='none';
+    noAlerts.style.display=paWatchlist.some(s=>s.lastResult)?'block':'none';
+  }
+  const statusSec=document.getElementById('pa-status-section');
+  const statusBody=document.getElementById('pa-status-body');
+  const scanned=paWatchlist.filter(s=>s.lastResult);
+  if(scanned.length){
+    statusSec.style.display='block';
+    statusBody.innerHTML=scanned.map(s=>{
+      const r=s.lastResult;
+      const patStr=r.pattern?r.pattern.pattern:'—';
+      const lvStr=r.nearestLevel?r.nearestLevel.name:(r.pattern&&r.pattern.pattern==='Break of Structure'?'BoS':'—');
+      const sigClr=r.hasSignal?'var(--green)':'var(--text2)';
+      const scClr=r.brScore>=5?'var(--green)':r.brScore>=4?'var(--amber)':'var(--text3)';
+      return`<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;font-weight:600;font-family:var(--mono);">${r.ticker}</td>
+        <td style="padding:8px 12px;color:${sigClr};">${r.hasSignal?'★ ':''}${patStr}</td>
+        <td style="padding:8px 12px;color:${r.nearestLevel?'var(--green)':'var(--text3)'};">${lvStr}</td>
+        <td style="padding:8px 12px;text-align:right;color:${r.volConfirmed?'var(--green)':'var(--text2)'};">${r.volRatio}×</td>
+        <td style="padding:8px 12px;text-align:right;color:${scClr};">${r.brScore}/6</td>
+        <td style="padding:8px 12px;text-align:right;color:var(--text3);font-family:var(--mono);font-size:11px;">${r.checkedAt}</td>
+        <td style="padding:8px 12px;text-align:center;">
+          <button class="btn" onclick="paRemoveTicker('${r.ticker}')" style="font-size:11px;padding:3px 8px;color:var(--red);border-color:var(--border);">×</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }else{
+    statusSec.style.display='none';
+  }
+}
+
+function paBuildAlertCard(r){
+  const ptClr=r.pattern.strength==='Strong'?'var(--green)':'var(--amber)';
+  const lvText=r.nearestLevel?`${r.nearestLevel.name} ($${r.nearestLevel.val.toFixed(2)})`:'Break of Structure';
+  const scClr=r.brScore>=5?'var(--green)':r.brScore>=4?'var(--amber)':'var(--text3)';
+  const key=storeResult(r);
+  return`<div class="alert-card" style="border-color:var(--green-border);align-self:start;">
+    <div class="card-header" style="cursor:default;">
+      <div class="score-badge" style="background:var(--green);color:#000;font-size:11px;padding:4px 8px;">PA</div>
+      <div class="ticker" style="color:var(--green);">${r.ticker}</div>
+      <div class="name">${r.name}</div>
+      <div class="price-row"><div class="price">$${r.price.toFixed(2)}</div></div>
+    </div>
+    <div class="card-body">
+      ${buildDataTimestamp()}
+      <div style="background:var(--surface2);border:1px solid var(--green-border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:10px;font-weight:600;">★ Price Action Entry Signal</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:var(--mono);font-size:13px;">
+          <div><div style="color:var(--text3);font-size:11px;margin-bottom:3px;">Pattern</div><span style="color:${ptClr};font-weight:600;">${r.pattern.pattern}</span> <span style="color:var(--text3);font-size:10px;">${r.pattern.strength}</span></div>
+          <div><div style="color:var(--text3);font-size:11px;margin-bottom:3px;">At Level</div><span style="color:var(--green);font-weight:600;">${lvText}</span></div>
+          <div><div style="color:var(--text3);font-size:11px;margin-bottom:3px;">Volume</div><span style="color:${r.volConfirmed?'var(--green)':'var(--amber)'};font-weight:600;">${r.volRatio}× avg</span></div>
+          <div><div style="color:var(--text3);font-size:11px;margin-bottom:3px;">Bull Score</div><span style="color:${scClr};font-weight:600;">${r.brScore}/6</span></div>
+        </div>
+      </div>
+      <div class="levels">
+        <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
+        <div class="level"><div class="lbl">Stop</div><div class="val stop">$${r.stopLoss.toFixed(2)}</div></div>
+        <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin:8px 0 4px;">ATR $${r.atr} · Risk/share $${r.riskPerShare}${r.vwap?' · VWAP $'+r.vwap:''}${r.ma50?' · MA50 $'+r.ma50:''}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:10px;">Checked at ${r.checkedAt}</div>
+      <button class="btn btn-primary" onclick='jjPrefillByKey("${key}")' style="width:100%;font-size:13px;padding:8px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+    </div>
+  </div>`;
+}
+
+// Init PA watchlist display on load
+paRenderWatchlist();
 </script>
 </body>
 </html>
