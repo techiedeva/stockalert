@@ -4274,6 +4274,8 @@ function qcLogTrade(){
 updatePushBtn();
 updateEmptyState();
 updateConditionsBanner();
+// Refresh time label every 60s so Market Open/Closed stays accurate without a scan
+setInterval(updateConditionsBanner, 60*1000);
 // Restore saved account size into config input
 (function(){
   const saved=getAccountSize();
