@@ -99,8 +99,8 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
 
 .alert-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:28px;}
-.alert-card{background:var(--surface);border:1px solid var(--green-border);border-radius:10px;padding:16px;position:relative;overflow:hidden;transition:transform .15s;display:flex;flex-direction:column;}
-.alert-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),transparent);}
+.alert-card{background:var(--surface);border:1px solid var(--gate-color,var(--green-border));border-radius:10px;padding:16px;position:relative;overflow:hidden;transition:transform .15s;display:flex;flex-direction:column;}
+.alert-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gate-color,var(--green)),transparent);}
 .alert-card:hover{transform:translateY(-2px);}
 .card-header{cursor:pointer;user-select:none;padding-right:20px;}
 .card-chev{position:absolute;top:14px;right:14px;font-size:13px;color:var(--text3);transition:transform .2s;line-height:1;pointer-events:none;}
@@ -2047,7 +2047,7 @@ function renderResults(){
       const cid=`card-rev-${r.ticker}-${i}`;
       const _gRev=cardGateStyle(r);
       cardsWrap.innerHTML+=`
-      <div class="alert-card collapsed" id="${cid}" style="align-self:start;border-color:${_gRev.borderColor};${_gRev.shadow}">
+      <div class="alert-card collapsed" id="${cid}" style="align-self:start;${_gRev.style}">
         <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
         <div class="card-header" onclick="toggleCard('${cid}')">
           <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
@@ -2166,7 +2166,7 @@ function cardGateStyle(r){
   const adxPass=r.adx===null||r.adx>=20;
   const pass=structurePass&&adxPass;
   const partial=structurePass!==adxPass;
-  const borderColor=pass?'var(--green)':partial?'var(--amber)':'var(--border2)';
+  const gateColor=pass?'var(--green)':partial?'var(--amber)':'var(--border2)';
   const pillBg=pass?'var(--green-bg)':partial?'var(--amber-bg)':'var(--surface2)';
   const pillBdr=pass?'var(--green-border)':partial?'var(--amber-border)':'var(--border2)';
   const pillClr=pass?'var(--green)':partial?'var(--amber)':'var(--text3)';
@@ -2175,8 +2175,9 @@ function cardGateStyle(r){
   if(!adxPass) why.push('ADX<20');
   const pillTxt=pass?'✓ Gates pass':(why.length?'✗ '+why.join(' · '):'⚠ partial');
   const pill=`<span style="display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.5px;padding:2px 7px;border-radius:3px;background:${pillBg};border:1px solid ${pillBdr};color:${pillClr};margin-top:4px;">${pillTxt}</span>`;
-  const shadow=pass?'box-shadow:0 0 0 2px var(--green-border);':'';
-  return{borderColor,pill,shadow,pass};
+  const shadow=pass?'box-shadow:0 0 0 2px rgba(74,222,128,0.25);':'';
+  // --gate-color drives both the border and the ::before top stripe via CSS custom property
+  return{style:`--gate-color:${gateColor};${shadow}`,pill,pass};
 }
 
 function buildTrendConfirmPanel(r){
@@ -3715,7 +3716,7 @@ function exRenderAlerts(){
     const cid=`card-ex-${r.ticker}-${i}`;
     const _gEx=cardGateStyle(r);
     cards.innerHTML+=`
-    <div class="alert-card collapsed" id="${cid}" style="align-self:start;border-color:${_gEx.borderColor};${_gEx.shadow}">
+    <div class="alert-card collapsed" id="${cid}" style="align-self:start;${_gEx.style}">
       <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
@@ -3948,7 +3949,7 @@ function brRenderCards(){
     const indPanel=brBuildIndicatorPanel(r);
     const cid=`card-br-${r.ticker}-${_brCardIdx++}`;
     const _gBR=cardGateStyle(r);
-    return`<div class="alert-card collapsed" id="${cid}" style="border-color:${_gBR.borderColor};${_gBR.shadow}align-self:start;">
+    return`<div class="alert-card collapsed" id="${cid}" style="align-self:start;${_gBR.style}">
       <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
@@ -4874,7 +4875,7 @@ function paBuildAlertCard(r){
   const scClr=r.brScore>=5?'var(--green)':r.brScore>=4?'var(--amber)':'var(--text3)';
   const key=storeResult(r);
   const _gPA=cardGateStyle(r);
-  return`<div class="alert-card" style="border-color:${_gPA.borderColor};${_gPA.shadow}align-self:start;">
+  return`<div class="alert-card" style="align-self:start;${_gPA.style}">
     <div class="card-header" style="cursor:default;">
       <div class="score-badge" style="background:var(--green);color:#000;font-size:11px;padding:4px 8px;">PA</div>
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
