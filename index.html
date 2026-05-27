@@ -3585,6 +3585,19 @@ async function exStartScan(){
       document.getElementById('ex-s-fetched').textContent=barsFetched;
       const result=analyzeStock(ticker,name,values);
       result.price=price;
+      // L2 enrichment: daily trend + 1H MTF
+      if(!l2DailyCache[ticker]) await sleep(PACE);
+      const exDailyTrend=l2DailyCache[ticker]||await fetchDailyTrend(ticker);
+      if(!mtfCache[ticker]) await sleep(PACE);
+      const exMTF=await fetchMTF(ticker,exLog);
+      result.l2={
+        dailyTrend:exDailyTrend,
+        mtf:exMTF,
+        rs:calcRelativeStrength(result.chgPct),
+        econWarning:getEconWarning(ticker),
+        vixStatus:l2VIXStatus,
+        minScore:l2MinScore
+      };
       exLog(`${ticker}: ${result.score}/6 · RSI ${result.rsi||'—'} · pull ${result.pullbackPct}%`,(result.score>=5?'good':''));
       if(result.score>=5){
         exResults.push(result);
@@ -3653,7 +3666,7 @@ function exRenderAlerts(){
         ${buildDataTimestamp()}
         ${r.l2?buildVIXBanner():''}
         ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}</div>
         ${buildTrendConfirmPanel(r)}
         ${buildVerdict(r,'reversal')}
         <div class="levels">
@@ -4235,6 +4248,11 @@ async function qcCheck(){
       }catch(e){/* RS unavailable — non-critical */}
     }
 
+    // Step 3b — Fetch 1H MTF confirmation
+    document.getElementById('qc-status').textContent='Checking 1H trend...';
+    await sleep(1500);
+    const mtf=await fetchMTF(ticker);
+
     // Step 4 — Run bull run analysis
     const r=analyzeBullRun(ticker,ticker,values);
 
@@ -4248,6 +4266,7 @@ async function qcCheck(){
     );
     r.l2={
       dailyTrend,
+      mtf,
       rs:calcRelativeStrength(r.chgPct),
       econWarning:getEconWarning(ticker),
       volProfile,
@@ -4310,6 +4329,7 @@ function qcRender(r){
       l2Html+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
       if(r.l2.dailyTrend) l2Html+=buildTrendBadge(r.l2.dailyTrend);
       if(r.l2.rs!==null) l2Html+=buildRSBadge(r.l2.rs);
+      if(r.l2.mtf!==undefined) l2Html+=buildMTFBadge(r.l2.mtf);
       l2Html+='</div>';
       // Daily trend gate warning in verdict
       if(r.l2.dailyTrend&&!r.l2.dailyTrend.aboveMA50){
@@ -4610,7 +4630,20 @@ async function paStartScan(){
     try{
       const values=await paFetchBars(ticker);
       if(!values){paLog(ticker+': No data available.','warn');continue;}
+      // L2 enrichment: daily trend + 1H MTF
+      if(!l2DailyCache[ticker]) await sleep(8000);
+      const paDailyTrend=l2DailyCache[ticker]||await fetchDailyTrend(ticker);
+      if(!mtfCache[ticker]) await sleep(8000);
+      const paMTF=await fetchMTF(ticker,paLog);
       const result=analyzePAStock(ticker,name,values);
+      result.l2={
+        dailyTrend:paDailyTrend,
+        mtf:paMTF,
+        rs:null,
+        econWarning:getEconWarning(ticker),
+        vixStatus:l2VIXStatus,
+        minScore:l2MinScore
+      };
       paWatchlist[i]={...paWatchlist[i],lastResult:result};
       if(result.hasSignal){
         paAlerts.push(result);
