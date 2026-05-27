@@ -2179,11 +2179,27 @@ function buildTrendConfirmPanel(r){
 
   const okCount=[dailyOk,mtfOk,tsOk,adxOk].filter(Boolean).length;
   const hasData=!!(daily||mtf||ts||adx!==null);
+
+  // 15m Structure and ADX are hard gates — a green verdict requires both.
+  // Without HH+HL structure, price action is not in an uptrend regardless of other signals.
+  // Without ADX≥25, the move is choppy and not worth trading.
+  const structureGate=!ts||(ts.higherHighs&&ts.higherLows); // pass if no data yet
+  const adxGate=adx===null||adx>=20; // pass if no data; warn below 25, block below 20
+
   let vtxt,vclr,vbg,vbdr;
-  if(!hasData){vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';}
-  else if(okCount>=3){vtxt='✓ Strong trend confirmation — good conditions to enter';vclr='var(--green)';vbg='var(--green-bg)';vbdr='var(--green-border)';}
-  else if(okCount===2){vtxt='⚠ Partial confirmation — consider half position size';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';}
-  else{vtxt='✗ Weak trend — high false-positive risk, consider skipping';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';}
+  if(!hasData){
+    vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';
+  } else if(!structureGate){
+    vtxt='✗ No uptrend structure — 15m chart is not making HH+HL. Skip this setup.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
+  } else if(adx!==null&&adx<20){
+    vtxt='✗ Market is choppy (ADX '+adx+') — signals are unreliable. Wait for ADX>25.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
+  } else if(okCount>=3&&structureGate&&adxGate){
+    vtxt='✓ Strong trend confirmation — good conditions to enter';vclr='var(--green)';vbg='var(--green-bg)';vbdr='var(--green-border)';
+  } else if(okCount===2){
+    vtxt='⚠ Partial confirmation — consider half position size';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';
+  } else {
+    vtxt='✗ Weak trend — high false-positive risk, consider skipping';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
+  }
 
   const rows=[
     {label:'Daily Trend', val:dailyText, clr:dailyClr},
