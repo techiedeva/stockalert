@@ -1184,6 +1184,57 @@ function calcATR(highs,lows,closes,p=14){
   return atr;
 }
 
+// ADX — Average Directional Index (Wilder's smoothing, period 14)
+// Returns current ADX value: >25 = trending, <20 = choppy/sideways
+function calcADX(highs,lows,closes,p=14){
+  const n=closes.length;
+  if(n<p*2+2) return null;
+  const dmP=[],dmN=[],tr=[];
+  for(let i=1;i<n;i++){
+    const up=highs[i]-highs[i-1],dn=lows[i-1]-lows[i];
+    dmP.push(up>dn&&up>0?up:0);
+    dmN.push(dn>up&&dn>0?dn:0);
+    tr.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
+  }
+  let sTR=tr.slice(0,p).reduce((a,b)=>a+b,0);
+  let sDMP=dmP.slice(0,p).reduce((a,b)=>a+b,0);
+  let sDMN=dmN.slice(0,p).reduce((a,b)=>a+b,0);
+  const dxArr=[];
+  function dx(a,b,c){const s=a+b;return s>0?100*Math.abs(a-b)/s:0;}
+  dxArr.push(dx(sTR>0?100*sDMP/sTR:0,sTR>0?100*sDMN/sTR:0));
+  for(let i=p;i<tr.length;i++){
+    sTR=sTR-sTR/p+tr[i]; sDMP=sDMP-sDMP/p+dmP[i]; sDMN=sDMN-sDMN/p+dmN[i];
+    dxArr.push(dx(sTR>0?100*sDMP/sTR:0,sTR>0?100*sDMN/sTR:0));
+  }
+  let adx=dxArr.slice(0,p).reduce((a,b)=>a+b,0)/p;
+  for(let i=p;i<dxArr.length;i++) adx=(adx*(p-1)+dxArr[i])/p;
+  return parseFloat(adx.toFixed(1));
+}
+
+// Trend structure — detects Higher Highs / Higher Lows using swing pivots
+function detectTrendStructure(highs,lows,closes){
+  const n=closes.length;
+  if(n<20) return{structure:'Insufficient data',ascending:false};
+  const wing=3,ph=[],pl=[];
+  for(let i=wing;i<n-wing;i++){
+    const h=highs[i];
+    if(highs.slice(i-wing,i).every(v=>v<=h)&&highs.slice(i+1,i+wing+1).every(v=>v<=h)) ph.push(h);
+    const l=lows[i];
+    if(lows.slice(i-wing,i).every(v=>v>=l)&&lows.slice(i+1,i+wing+1).every(v=>v>=l)) pl.push(l);
+  }
+  if(ph.length<2||pl.length<2) return{structure:'Not enough pivots',ascending:false};
+  const rph=ph.slice(-3),rpl=pl.slice(-3);
+  const hh=rph.every((v,i)=>i===0||v>rph[i-1]);
+  const hl=rpl.every((v,i)=>i===0||v>rpl[i-1]);
+  const lh=rph.every((v,i)=>i===0||v<rph[i-1]);
+  const ll=rpl.every((v,i)=>i===0||v<rpl[i-1]);
+  if(hh&&hl) return{structure:'Uptrend',ascending:true,higherHighs:true,higherLows:true};
+  if(lh&&ll) return{structure:'Downtrend',ascending:false,higherHighs:false,higherLows:false};
+  if(hh) return{structure:'Rising highs',ascending:true,higherHighs:true,higherLows:false};
+  if(hl) return{structure:'Rising lows',ascending:true,higherHighs:false,higherLows:true};
+  return{structure:'Sideways',ascending:false,higherHighs:false,higherLows:false};
+}
+
 function calcSupportResistance(highs,lows,closes,bbUpArr,bbLoArr,n=3){
   const cp=closes[closes.length-1];
   const wing=3; // 3 bars each side — works better for volatile small-caps
@@ -1531,6 +1582,8 @@ function analyzeStock(ticker,name,values){
     stopLoss,target2,
     riskPerShare:parseFloat(riskPerShare.toFixed(2)),
     sr, vwap, aboveVWAP, entryZone,
+    adx:calcADX(highs,lows,closes,14),
+    trendStructure:detectTrendStructure(highs,lows,closes),
   };
 }
 
@@ -2008,6 +2061,7 @@ function renderResults(){
             ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
             ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
           </div>
+          ${buildTrendConfirmPanel(r)}
           ${buildVerdict(r,'reversal')}
           <div class="levels">
             <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
@@ -2096,6 +2150,57 @@ function buildMTFBadge(mtf){
   const border=mtf.confirmed?'var(--green-border)':'var(--amber-border)';
   const label=mtf.confirmed?`1H ✓ Confirmed (${mtf.score}/3)`:`1H ⚠ Weak (${mtf.score}/3)`;
   return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${bg};border:1px solid ${border};color:${color};" title="1-hour chart: MA20=${mtf.aboveMA20?'✓':'✗'} MA50=${mtf.aboveMA50?'✓':'✗'} MACD=${mtf.macdPositive?'✓':'✗'}">${label}</span>`;
+}
+
+// ── TREND CONFIRMATION PANEL — Daily + 1H + 15m Structure + ADX ──────────
+function buildTrendConfirmPanel(r){
+  const daily=r.l2&&r.l2.dailyTrend;
+  const mtf=r.l2&&r.l2.mtf!==undefined?r.l2.mtf:null;
+  const ts=r.trendStructure;
+  const adx=r.adx!=null?r.adx:null;
+
+  const dailyOk=!!(daily&&daily.aboveMA50);
+  const dailyText=daily?(dailyOk?`↑ Above Daily MA50 (+${daily.pctFromMA50}%)`:`↓ Below Daily MA50 (${daily.pctFromMA50}%)`):'— run a scan to load';
+  const dailyClr=daily?(dailyOk?'var(--green)':'var(--red)'):'var(--text3)';
+
+  const mtfOk=!!(mtf&&mtf.confirmed);
+  const mtfDetail=mtf?` · MA20 ${mtf.aboveMA20?'✓':'✗'} MA50 ${mtf.aboveMA50?'✓':'✗'} MACD ${mtf.macdPositive?'✓':'✗'}`:'';
+  const mtfText=mtf?`${mtfOk?'✓ Confirmed':'⚠ Weak'} (${mtf.score}/3${mtfDetail})`:'— not available';
+  const mtfClr=mtf?(mtfOk?'var(--green)':'var(--amber)'):'var(--text3)';
+
+  const tsOk=!!(ts&&ts.ascending);
+  const tsDetail=ts&&ts.higherHighs!==undefined?` · HH ${ts.higherHighs?'✓':'✗'} HL ${ts.higherLows?'✓':'✗'}`:'';
+  const tsText=ts?`${ts.structure}${tsDetail}`:'—';
+  const tsClr=ts?(ts.structure==='Uptrend'?'var(--green)':ts.ascending?'var(--amber)':'var(--red)'):'var(--text3)';
+
+  const adxOk=adx!==null&&adx>=25;
+  const adxText=adx!==null?`${adx} — ${adx>=25?'Trending ✓':adx>=20?'Borderline':'Choppy ✗'}`:'—';
+  const adxClr=adx!==null?(adx>=25?'var(--green)':adx>=20?'var(--amber)':'var(--red)'):'var(--text3)';
+
+  const okCount=[dailyOk,mtfOk,tsOk,adxOk].filter(Boolean).length;
+  const hasData=!!(daily||mtf||ts||adx!==null);
+  let vtxt,vclr,vbg,vbdr;
+  if(!hasData){vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';}
+  else if(okCount>=3){vtxt='✓ Strong trend confirmation — good conditions to enter';vclr='var(--green)';vbg='var(--green-bg)';vbdr='var(--green-border)';}
+  else if(okCount===2){vtxt='⚠ Partial confirmation — consider half position size';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';}
+  else{vtxt='✗ Weak trend — high false-positive risk, consider skipping';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';}
+
+  const rows=[
+    {label:'Daily Trend', val:dailyText, clr:dailyClr},
+    {label:'1H Chart',    val:mtfText,   clr:mtfClr},
+    {label:'15m Structure',val:tsText,   clr:tsClr},
+    {label:'ADX (Strength)',val:adxText, clr:adxClr},
+  ].map(row=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="width:7px;height:7px;border-radius:50%;background:${row.clr};flex-shrink:0;margin-top:3px;"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);min-width:100px;flex-shrink:0;">${row.label}</span>
+      <span style="font-family:var(--mono);font-size:11px;color:${row.clr};flex:1;">${row.val}</span>
+    </div>`).join('');
+
+  return`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:8px 0;">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Trend Confirmation</div>
+    ${rows}
+    <div style="margin-top:8px;padding:7px 10px;background:${vbg};border:1px solid ${vbdr};border-radius:6px;font-family:var(--mono);font-size:12px;font-weight:600;color:${vclr};">${vtxt}</div>
+  </div>`;
 }
 
 // ── ENTRY ZONE PANEL ──────────────────────────────────────────────────────
@@ -3549,6 +3654,7 @@ function exRenderAlerts(){
         ${r.l2?buildVIXBanner():''}
         ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}</div>
+        ${buildTrendConfirmPanel(r)}
         ${buildVerdict(r,'reversal')}
         <div class="levels">
           <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
@@ -3708,6 +3814,8 @@ function analyzeBullRun(ticker, name, values){
     stopLoss,target2,riskPerShare:parseFloat(riskPerShare.toFixed(2)),
     cMACD:cMACD!=null?parseFloat(cMACD.toFixed(3)):null,
     sr, vwap, aboveVWAP, entryZone,
+    adx:calcADX(highs,lows,closes,14),
+    trendStructure:detectTrendStructure(highs,lows,closes),
   };
 }
 
@@ -3781,6 +3889,7 @@ function brRenderCards(){
           ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
           ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
         </div>
+        ${buildTrendConfirmPanel(r)}
         ${buildVerdict(r,'bullrun')}
         <div class="levels">
           <div class="level"><div class="lbl">Entry</div><div class="val">$${r.price.toFixed(2)}</div></div>
@@ -4243,7 +4352,7 @@ function qcRender(r){
 
   // Expanded panel (hidden by default)
   document.getElementById('qc-expanded').innerHTML=
-    brBuildIndicatorPanel(r)+buildSRPanel(r)+buildEntryZonePanel(r);
+    buildTrendConfirmPanel(r)+brBuildIndicatorPanel(r)+buildSRPanel(r)+buildEntryZonePanel(r);
   document.getElementById('qc-expanded').style.display='none';
 
   document.getElementById('qc-compact').style.display='block';
@@ -4450,6 +4559,8 @@ function analyzePAStock(ticker,name,values){
     ma50:cMA50?parseFloat(cMA50.toFixed(2)):null,
     ma200:cMA200?parseFloat(cMA200.toFixed(2)):null,
     vwap:vwap||null,sr,
+    adx:br.adx,
+    trendStructure:br.trendStructure,
     checkedAt:new Date().toLocaleTimeString(),
   };
 }
@@ -4686,6 +4797,7 @@ function paBuildAlertCard(r){
         <div class="level"><div class="lbl">Target 2:1</div><div class="val target">$${r.target2.toFixed(2)}</div></div>
       </div>
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin:8px 0 4px;">ATR $${r.atr} · Risk/share $${r.riskPerShare}${r.vwap?' · VWAP $'+r.vwap:''}${r.ma50?' · MA50 $'+r.ma50:''}</div>
+      ${buildTrendConfirmPanel(r)}
       <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:10px;">Checked at ${r.checkedAt}</div>
       <button class="btn btn-primary" onclick='jjPrefillByKey("${key}")' style="width:100%;font-size:13px;padding:8px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
     </div>
