@@ -2045,13 +2045,15 @@ function renderResults(){
       const chgStr=(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)+'%';
       const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" data-tip="${['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pullback'][i]}"></div>`).join('');
       const cid=`card-rev-${r.ticker}-${i}`;
+      const _gRev=cardGateStyle(r);
       cardsWrap.innerHTML+=`
-      <div class="alert-card collapsed" id="${cid}" style="align-self:start;">
+      <div class="alert-card collapsed" id="${cid}" style="align-self:start;border-color:${_gRev.borderColor};${_gRev.shadow}">
         <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
         <div class="card-header" onclick="toggleCard('${cid}')">
           <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
           <div class="ticker">${r.ticker}</div>
           <div class="name">${r.name}</div>
+          ${_gRev.pill}
           <div class="price-row">
             <div class="price">$${r.price.toFixed(2)}</div>
             <div class="change ${chgClass}">${chgStr}</div>
@@ -2158,6 +2160,25 @@ function buildMTFBadge(mtf){
 }
 
 // ── TREND CONFIRMATION PANEL — Daily + 1H + 15m Structure + ADX ──────────
+function cardGateStyle(r){
+  const ts=r.trendStructure;
+  const structurePass=!ts||(ts.higherHighs&&ts.higherLows);
+  const adxPass=r.adx===null||r.adx>=20;
+  const pass=structurePass&&adxPass;
+  const partial=structurePass!==adxPass;
+  const borderColor=pass?'var(--green)':partial?'var(--amber)':'var(--border2)';
+  const pillBg=pass?'var(--green-bg)':partial?'var(--amber-bg)':'var(--surface2)';
+  const pillBdr=pass?'var(--green-border)':partial?'var(--amber-border)':'var(--border2)';
+  const pillClr=pass?'var(--green)':partial?'var(--amber)':'var(--text3)';
+  const why=[];
+  if(!structurePass) why.push('no HH+HL');
+  if(!adxPass) why.push('ADX<20');
+  const pillTxt=pass?'✓ Gates pass':(why.length?'✗ '+why.join(' · '):'⚠ partial');
+  const pill=`<span style="display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.5px;padding:2px 7px;border-radius:3px;background:${pillBg};border:1px solid ${pillBdr};color:${pillClr};margin-top:4px;">${pillTxt}</span>`;
+  const shadow=pass?'box-shadow:0 0 0 2px var(--green-border);':'';
+  return{borderColor,pill,shadow,pass};
+}
+
 function buildTrendConfirmPanel(r){
   const daily=r.l2&&r.l2.dailyTrend;
   const mtf=r.l2&&r.l2.mtf!==undefined?r.l2.mtf:null;
@@ -3692,13 +3713,15 @@ function exRenderAlerts(){
     const chgClass=r.chgPct>=0?'pos':'neg';
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     const cid=`card-ex-${r.ticker}-${i}`;
+    const _gEx=cardGateStyle(r);
     cards.innerHTML+=`
-    <div class="alert-card collapsed" id="${cid}" style="align-self:start;">
+    <div class="alert-card collapsed" id="${cid}" style="align-self:start;border-color:${_gEx.borderColor};${_gEx.shadow}">
       <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker">${r.ticker}</div>
         <div class="name">${r.name}</div>
+        ${_gEx.pill}
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
           <div class="change ${chgClass}">${(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)}%</div>
@@ -3924,12 +3947,14 @@ function brRenderCards(){
     const dotsHtml=r.signals.map((s,i)=>`<div class="sig-dot ${s?'on':'off'}" title="${sigLabels[i]}"></div>`).join('');
     const indPanel=brBuildIndicatorPanel(r);
     const cid=`card-br-${r.ticker}-${_brCardIdx++}`;
-    return`<div class="alert-card collapsed" id="${cid}" style="border-color:var(--green-border);align-self:start;">
+    const _gBR=cardGateStyle(r);
+    return`<div class="alert-card collapsed" id="${cid}" style="border-color:${_gBR.borderColor};${_gBR.shadow}align-self:start;">
       <span class="card-chev" style="transform:rotate(-90deg);">▾</span>
       <div class="card-header" onclick="toggleCard('${cid}')">
         <div class="score-badge ${scoreBadgeClass(r.score)}">${r.score}/6</div>
         <div class="ticker" style="color:var(--green);">${r.ticker}</div>
         <div class="name">${r.name}</div>
+        ${_gBR.pill}
         <div class="price-row">
           <div class="price">$${r.price.toFixed(2)}</div>
           <div class="change ${chgClass}">${r.chgPct>=0?'+':''}${r.chgPct.toFixed(2)}%</div>
@@ -4848,11 +4873,13 @@ function paBuildAlertCard(r){
   const lvText=r.nearestLevel?`${r.nearestLevel.name} ($${r.nearestLevel.val.toFixed(2)})`:'Break of Structure';
   const scClr=r.brScore>=5?'var(--green)':r.brScore>=4?'var(--amber)':'var(--text3)';
   const key=storeResult(r);
-  return`<div class="alert-card" style="border-color:var(--green-border);align-self:start;">
+  const _gPA=cardGateStyle(r);
+  return`<div class="alert-card" style="border-color:${_gPA.borderColor};${_gPA.shadow}align-self:start;">
     <div class="card-header" style="cursor:default;">
       <div class="score-badge" style="background:var(--green);color:#000;font-size:11px;padding:4px 8px;">PA</div>
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
       <div class="name">${r.name}</div>
+      ${_gPA.pill}
       <div class="price-row"><div class="price">$${r.price.toFixed(2)}</div></div>
     </div>
     <div class="card-body">
