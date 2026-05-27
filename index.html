@@ -28,6 +28,7 @@
   --red-border:rgba(184,50,50,0.22);
   --blue:#1a58a0;
   --blue-bg:rgba(26,88,160,0.1);
+  --blue-border:rgba(26,88,160,0.35);
   --accent:#157a50;
   --mono:'IBM Plex Mono',monospace;
   --sans:'IBM Plex Sans',sans-serif;
@@ -2164,20 +2165,30 @@ function cardGateStyle(r){
   const ts=r.trendStructure;
   const structurePass=!ts||(ts.higherHighs&&ts.higherLows);
   const adxPass=r.adx===null||r.adx>=20;
+  const h1ts=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
+  const h1Uptrend=!!(h1ts&&h1ts.higherHighs&&h1ts.higherLows);
   const pass=structurePass&&adxPass;
-  const partial=structurePass!==adxPass;
-  const gateColor=pass?'var(--green)':partial?'var(--amber)':'var(--border2)';
-  const pillBg=pass?'var(--green-bg)':partial?'var(--amber-bg)':'var(--surface2)';
-  const pillBdr=pass?'var(--green-border)':partial?'var(--amber-border)':'var(--border2)';
-  const pillClr=pass?'var(--green)':partial?'var(--amber)':'var(--text3)';
-  const why=[];
-  if(!structurePass) why.push('no HH+HL');
-  if(!adxPass) why.push('ADX<20');
-  const pillTxt=pass?'✓ Gates pass':(why.length?'✗ '+why.join(' · '):'⚠ partial');
+  // 1H uptrend + ADX ok but 15m pulling back = best entry setup, show blue
+  const pullback=!structurePass&&adxPass&&h1Uptrend;
+  const partial=!pass&&!pullback&&(structurePass!==adxPass);
+  let gateColor,pillBg,pillBdr,pillClr,pillTxt,shadow;
+  if(pass){
+    gateColor='var(--green)';pillBg='var(--green-bg)';pillBdr='var(--green-border)';pillClr='var(--green)';
+    pillTxt='✓ Gates pass';shadow='box-shadow:0 0 0 2px rgba(21,122,80,0.2);';
+  } else if(pullback){
+    gateColor='var(--blue)';pillBg='var(--blue-bg)';pillBdr='var(--blue-border)';pillClr='var(--blue)';
+    pillTxt='⏳ 1H up · 15m pullback';shadow='';
+  } else if(partial){
+    gateColor='var(--amber)';pillBg='var(--amber-bg)';pillBdr='var(--amber-border)';pillClr='var(--amber)';
+    const why=[];if(!structurePass)why.push('no HH+HL');if(!adxPass)why.push('ADX<20');
+    pillTxt='⚠ '+why.join(' · ');shadow='';
+  } else {
+    gateColor='var(--border2)';pillBg='var(--surface2)';pillBdr='var(--border2)';pillClr='var(--text3)';
+    const why=[];if(!structurePass)why.push('no HH+HL');if(!adxPass)why.push('ADX<20');
+    pillTxt='✗ '+why.join(' · ');shadow='';
+  }
   const pill=`<span style="display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.5px;padding:2px 7px;border-radius:3px;background:${pillBg};border:1px solid ${pillBdr};color:${pillClr};margin-top:4px;">${pillTxt}</span>`;
-  const shadow=pass?'box-shadow:0 0 0 2px rgba(74,222,128,0.25);':'';
-  // --gate-color drives both the border and the ::before top stripe via CSS custom property
-  return{style:`--gate-color:${gateColor};${shadow}`,pill,pass};
+  return{style:`--gate-color:${gateColor};${shadow}`,pill,pass,pullback};
 }
 
 function buildTrendConfirmPanel(r){
@@ -2220,8 +2231,10 @@ function buildTrendConfirmPanel(r){
   let vtxt,vclr,vbg,vbdr;
   if(!hasData){
     vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';
+  } else if(!structureGate&&h1tsOk){
+    vtxt='⏳ 1H uptrend intact — 15m pulling back. Wait for first 15m Higher Low, then enter on the next breakout above the swing high.';vclr='var(--blue)';vbg='var(--blue-bg)';vbdr='var(--blue-border)';
   } else if(!structureGate){
-    vtxt='✗ No uptrend structure — 15m chart is not making HH+HL. Skip this setup.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
+    vtxt='✗ No uptrend structure — neither 1H nor 15m is making HH+HL. Skip this setup.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
   } else if(!adxGate){
     vtxt='✗ ADX '+(adx!==null?adx:'—')+' — trend too weak/choppy. Wait for ADX ≥ 20 before entering.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
   } else if(okCount>=4){
@@ -2680,9 +2693,12 @@ function buildVerdict(r,mode){
   const h1tsV=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
   const h1StructureGate=!h1tsV||(h1tsV.higherHighs&&h1tsV.higherLows);
   let icon,label,color,bg,border,subtext;
-  if(!structureGate){
-    icon='🟡';label='CAUTION — 15m STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
-    subtext='15m chart is not making Higher Highs + Higher Lows ('+(ts?ts.structure:'unknown')+'). Momentum signals are strong but wait for HH+HL structure before entering — entering without it increases false-breakout risk.';
+  if(!structureGate&&h1StructureGate){
+    icon='⏳';label='WAIT — 15m PULLBACK IN PROGRESS';color='var(--blue)';bg='var(--blue-bg)';border='var(--blue-border)';
+    subtext='1H trend is confirmed HH+HL ✓ but 15m is pulling back ('+(ts?ts.structure:'unknown')+'). This is a high-quality entry setup forming. Watch for the first 15m Higher Low then enter on the next breakout above the swing high with volume.';
+  } else if(!structureGate){
+    icon='🟡';label='CAUTION — STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='Neither 1H nor 15m is making Higher Highs + Higher Lows. Wait for the higher timeframe to establish an uptrend before looking for entries.';
   } else if(!h1StructureGate){
     icon='🟡';label='CAUTION — 1H STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
     subtext='1H chart is not making Higher Highs + Higher Lows ('+(h1tsV?h1tsV.structure:'unknown')+'). The 15m setup is valid but the 1H trend has not confirmed. Consider waiting for 1H to also establish HH+HL before entering.';
