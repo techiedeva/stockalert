@@ -2090,7 +2090,6 @@ function renderResults(){
           ${buildSRPanel(r)}
           ${buildEntryZonePanel(r)}
           ${buildPositionSizing(r)}
-          ${buildWinRateContext(r)}
           <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
         </div>
       </div>`;
@@ -3789,7 +3788,6 @@ function exRenderAlerts(){
         ${buildSRPanel(r)}
         ${buildEntryZonePanel(r)}
         ${buildPositionSizing(r)}
-        ${buildWinRateContext(r)}
         <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;">+ Log trade</button>
       </div>
     </div>`;
@@ -4029,7 +4027,6 @@ function brRenderCards(){
         ${buildSRPanel(r)}
         ${buildEntryZonePanel(r)}
         ${buildPositionSizing(r)}
-        ${buildWinRateContext(r)}
         <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:auto;font-size:13px;padding:10px 0 6px;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
         <button class="btn" onclick="paAddTicker('${r.ticker}','${(r.name||'').replace(/['"\\]/g,'')}');" style="width:100%;margin-top:6px;font-size:13px;padding:8px 0;color:var(--accent);border-color:var(--border);">👁 Watch PA</button>
       </div>
