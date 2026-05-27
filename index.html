@@ -2625,8 +2625,18 @@ function buildVerdict(r,mode){
     if(signals[4]) parts.push('volume is increasing');
     if(signals[5]) parts.push('price coiling up — breakout may be building');
   }
+  // Hard gates — mirror Trend Confirmation Panel logic
+  const ts=r.trendStructure;
+  const structureGate=!ts||(ts.higherHighs&&ts.higherLows);
+  const adxGate=r.adx===null||r.adx>=20;
   let icon,label,color,bg,border,subtext;
-  if(score>=6){
+  if(!structureGate){
+    icon='🟡';label='CAUTION — STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='15m chart is not making Higher Highs + Higher Lows ('+(ts?ts.structure:'unknown')+'). Momentum signals are strong but wait for HH+HL structure before entering — entering without it increases false-breakout risk.';
+  } else if(!adxGate){
+    icon='🟡';label='CAUTION — CHOPPY MARKET';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='ADX '+(r.adx!==null?r.adx:'—')+' is below 20 — trend is weak or ranging. Signals may be false. Wait for ADX to climb above 20 before committing.';
+  } else if(score>=6){
     icon='🟢';label='STRONG BUY SETUP';color='var(--green)';bg='var(--green-bg)';border='var(--green-border)';
     subtext=mode==='reversal'?'All 6 reversal signals firing — highest confidence setup the scanner can find.':'All 6 bull run signals confirmed — strong momentum with volume support.';
   } else if(score>=5){
