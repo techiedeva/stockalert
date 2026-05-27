@@ -1347,6 +1347,8 @@ async function fetchMTF(ticker, logFn){
       if(data.values&&data.values.length>=10){
         const vals=[...data.values].reverse();
         const closes=vals.map(v=>parseFloat(v.close));
+        const highs =vals.map(v=>parseFloat(v.high));
+        const lows  =vals.map(v=>parseFloat(v.low));
         const ma20arr=calcEMA(closes,20);
         const ma50arr=calcEMA(closes,Math.min(50,closes.length));
         const rsiArr=calcRSI(closes,14);
@@ -1357,6 +1359,7 @@ async function fetchMTF(ticker, logFn){
         const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
         const macdLine=closes.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
         const cMACD=lastVal(macdLine);
+        const trendStructure=detectTrendStructure(highs,lows,closes);
         const result={
           aboveMA20:cMA20!=null&&cp>cMA20,
           aboveMA50:cMA50!=null&&cp>cMA50,
@@ -1367,13 +1370,14 @@ async function fetchMTF(ticker, logFn){
           ma20:cMA20?parseFloat(cMA20.toFixed(2)):null,
           ma50:cMA50?parseFloat(cMA50.toFixed(2)):null,
           macd:cMACD?parseFloat(cMACD.toFixed(3)):null,
+          trendStructure,
         };
         // 1H confirmation: needs at least 2 of 3 (MA20, MA50, MACD positive)
         const score=[result.aboveMA20,result.aboveMA50,result.macdPositive].filter(Boolean).length;
         result.confirmed=score>=2;
         result.score=score;
         mtfCache[ticker]=result;
-        _log(`MTF 1H ${ticker}: MA20=${result.aboveMA20?'✓':'✗'} MA50=${result.aboveMA50?'✓':'✗'} MACD=${result.macdPositive?'✓':'✗'} → ${result.confirmed?'CONFIRMED':'CONFLICT'}`,(result.confirmed?'good':'warn'));
+        _log(`MTF 1H ${ticker}: MA20=${result.aboveMA20?'✓':'✗'} MA50=${result.aboveMA50?'✓':'✗'} MACD=${result.macdPositive?'✓':'✗'} · 1H Structure: ${trendStructure?trendStructure.structure:'?'} → ${result.confirmed?'CONFIRMED':'CONFLICT'}`,(result.confirmed?'good':'warn'));
         return result;
       }
     }catch(e){
@@ -2169,7 +2173,13 @@ function buildTrendConfirmPanel(r){
   const mtfText=mtf?`${mtfOk?'✓ Confirmed':'⚠ Weak'} (${mtf.score}/3${mtfDetail})`:'— not available';
   const mtfClr=mtf?(mtfOk?'var(--green)':'var(--amber)'):'var(--text3)';
 
-  const tsOk=!!(ts&&ts.ascending);
+  const h1ts=mtf&&mtf.trendStructure?mtf.trendStructure:null;
+  const h1tsOk=!!(h1ts&&h1ts.higherHighs&&h1ts.higherLows);
+  const h1tsDetail=h1ts&&h1ts.higherHighs!==undefined?` · HH ${h1ts.higherHighs?'✓':'✗'} HL ${h1ts.higherLows?'✓':'✗'}`:'';
+  const h1tsText=h1ts?`${h1ts.structure}${h1tsDetail}`:'— not available';
+  const h1tsClr=h1ts?(h1ts.structure==='Uptrend'?'var(--green)':h1ts.ascending?'var(--amber)':'var(--red)'):'var(--text3)';
+
+  const tsOk=!!(ts&&ts.higherHighs&&ts.higherLows);
   const tsDetail=ts&&ts.higherHighs!==undefined?` · HH ${ts.higherHighs?'✓':'✗'} HL ${ts.higherLows?'✓':'✗'}`:'';
   const tsText=ts?`${ts.structure}${tsDetail}`:'—';
   const tsClr=ts?(ts.structure==='Uptrend'?'var(--green)':ts.ascending?'var(--amber)':'var(--red)'):'var(--text3)';
@@ -2178,7 +2188,11 @@ function buildTrendConfirmPanel(r){
   const adxText=adx!==null?`${adx} — ${adx>=25?'Trending ✓':adx>=20?'Borderline':'Choppy ✗'}`:'—';
   const adxClr=adx!==null?(adx>=25?'var(--green)':adx>=20?'var(--amber)':'var(--red)'):'var(--text3)';
 
-  const okCount=[dailyOk,mtfOk,tsOk,adxOk].filter(Boolean).length;
+  // Hard gates: 15m structure must be full HH+HL; ADX must be ≥ 20
+  const structureGate=!ts||(ts.higherHighs&&ts.higherLows);
+  const adxGate=adx===null||adx>=20;
+
+  const okCount=[dailyOk,mtfOk,h1tsOk,tsOk,adxOk].filter(Boolean).length;
   const hasData=!!(daily||mtf||ts||adx!==null);
 
   // 15m Structure and ADX are hard gates — a green verdict requires both.
@@ -2192,21 +2206,22 @@ function buildTrendConfirmPanel(r){
     vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';
   } else if(!structureGate){
     vtxt='✗ No uptrend structure — 15m chart is not making HH+HL. Skip this setup.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
-  } else if(adx!==null&&adx<20){
-    vtxt='✗ Market is choppy (ADX '+adx+') — signals are unreliable. Wait for ADX>25.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
-  } else if(okCount>=3&&structureGate&&adxGate){
+  } else if(!adxGate){
+    vtxt='✗ ADX '+(adx!==null?adx:'—')+' — trend too weak/choppy. Wait for ADX ≥ 20 before entering.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
+  } else if(okCount>=4){
     vtxt='✓ Strong trend confirmation — good conditions to enter';vclr='var(--green)';vbg='var(--green-bg)';vbdr='var(--green-border)';
-  } else if(okCount===2){
-    vtxt='⚠ Partial confirmation — consider half position size';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';
+  } else if(okCount>=2){
+    vtxt='⚠ Partial confirmation — consider half position size or wait';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';
   } else {
     vtxt='✗ Weak trend — high false-positive risk, consider skipping';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
   }
 
   const rows=[
-    {label:'Daily Trend', val:dailyText, clr:dailyClr},
-    {label:'1H Chart',    val:mtfText,   clr:mtfClr},
-    {label:'15m Structure',val:tsText,   clr:tsClr},
-    {label:'ADX (Strength)',val:adxText, clr:adxClr},
+    {label:'Daily Trend',   val:dailyText,  clr:dailyClr},
+    {label:'1H Chart',      val:mtfText,    clr:mtfClr},
+    {label:'1H Structure',  val:h1tsText,   clr:h1tsClr},
+    {label:'15m Structure', val:tsText,     clr:tsClr},
+    {label:'ADX (Strength)',val:adxText,    clr:adxClr},
   ].map(row=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
       <div style="width:7px;height:7px;border-radius:50%;background:${row.clr};flex-shrink:0;margin-top:3px;"></div>
       <span style="font-family:var(--mono);font-size:11px;color:var(--text3);min-width:100px;flex-shrink:0;">${row.label}</span>
@@ -2646,10 +2661,15 @@ function buildVerdict(r,mode){
   const ts=r.trendStructure;
   const structureGate=!ts||(ts.higherHighs&&ts.higherLows);
   const adxGate=r.adx===null||r.adx>=20;
+  const h1tsV=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
+  const h1StructureGate=!h1tsV||(h1tsV.higherHighs&&h1tsV.higherLows);
   let icon,label,color,bg,border,subtext;
   if(!structureGate){
-    icon='🟡';label='CAUTION — STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    icon='🟡';label='CAUTION — 15m STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
     subtext='15m chart is not making Higher Highs + Higher Lows ('+(ts?ts.structure:'unknown')+'). Momentum signals are strong but wait for HH+HL structure before entering — entering without it increases false-breakout risk.';
+  } else if(!h1StructureGate){
+    icon='🟡';label='CAUTION — 1H STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='1H chart is not making Higher Highs + Higher Lows ('+(h1tsV?h1tsV.structure:'unknown')+'). The 15m setup is valid but the 1H trend has not confirmed. Consider waiting for 1H to also establish HH+HL before entering.';
   } else if(!adxGate){
     icon='🟡';label='CAUTION — CHOPPY MARKET';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
     subtext='ADX '+(r.adx!==null?r.adx:'—')+' is below 20 — trend is weak or ranging. Signals may be false. Wait for ADX to climb above 20 before committing.';
