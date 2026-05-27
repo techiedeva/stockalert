@@ -2195,12 +2195,6 @@ function buildTrendConfirmPanel(r){
   const okCount=[dailyOk,mtfOk,h1tsOk,tsOk,adxOk].filter(Boolean).length;
   const hasData=!!(daily||mtf||ts||adx!==null);
 
-  // 15m Structure and ADX are hard gates — a green verdict requires both.
-  // Without HH+HL structure, price action is not in an uptrend regardless of other signals.
-  // Without ADX≥25, the move is choppy and not worth trading.
-  const structureGate=!ts||(ts.higherHighs&&ts.higherLows); // pass if no data yet
-  const adxGate=adx===null||adx>=20; // pass if no data; warn below 25, block below 20
-
   let vtxt,vclr,vbg,vbdr;
   if(!hasData){
     vtxt='Run a scan to load trend data';vclr='var(--text3)';vbg='var(--surface2)';vbdr='var(--border)';
