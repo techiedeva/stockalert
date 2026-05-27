@@ -329,6 +329,7 @@ tr:hover td{background:var(--surface2);}
   <!-- TOP ALERTS -->
   <div id="alerts-section" style="display:none;">
     <div class="section-title">🚀 Launch alerts — 5-6 signals firing</div>
+    <div id="gate-legend-rev"></div>
     <div class="alert-cards" id="alert-cards"></div>
   </div>
 
@@ -694,6 +695,7 @@ tr:hover td{background:var(--surface2);}
   <!-- RESULTS -->
   <div id="ex-alerts-section" style="display:none;">
     <div class="section-title">🚀 Launch alerts — discovered from NASDAQ+NYSE under $50</div>
+    <div id="gate-legend-ex"></div>
     <div class="alert-cards" id="ex-alert-cards"></div>
   </div>
 
@@ -841,12 +843,14 @@ tr:hover td{background:var(--surface2);}
   <!-- STRONG BULL ALERTS -->
   <div id="br-strong-section" style="display:none;">
     <div class="section-title">🚀 Strong bull setups — 5-6 signals</div>
+    <div id="gate-legend-br"></div>
     <div class="alert-cards" id="br-strong-cards"></div>
   </div>
 
   <!-- BUILDING SECTION -->
   <div id="br-building-section" style="display:none;">
     <div class="section-title">📈 Building momentum — 4 signals</div>
+    <div id="gate-legend-br-build"></div>
     <div class="alert-cards" id="br-building-cards"></div>
   </div>
 
@@ -911,6 +915,7 @@ tr:hover td{background:var(--surface2);}
     </div>
     <div id="pa-alerts-section" style="display:none;margin-bottom:24px;">
       <div style="font-size:12px;font-weight:600;color:var(--green);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">★ PA Entry Signals</div>
+      <div id="gate-legend-pa"></div>
       <div id="pa-alert-cards" class="alert-cards"></div>
     </div>
     <div id="pa-no-alerts" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:28px;text-align:center;margin-bottom:20px;">
@@ -2041,6 +2046,7 @@ function renderResults(){
   cardsWrap.innerHTML='';
   if(launches.length>0){
     document.getElementById('alerts-section').style.display='block';
+    document.getElementById('gate-legend-rev').innerHTML=buildGateLegend();
     launches.forEach((r,i)=>{
       const chgClass=r.chgPct>=0?'pos':'neg';
       const chgStr=(r.chgPct>=0?'+':'')+r.chgPct.toFixed(2)+'%';
@@ -2161,6 +2167,16 @@ function buildMTFBadge(mtf){
 }
 
 // ── TREND CONFIRMATION PANEL — Daily + 1H + 15m Structure + ADX ──────────
+function buildGateLegend(){
+  return`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+    <span style="font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-right:2px;">Card border:</span>
+    <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);">✓ Gates pass — enter</span>
+    <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);">⏳ 1H up · 15m pullback — watch</span>
+    <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--amber-border);background:var(--amber-bg);color:var(--amber);">⚠ partial — caution</span>
+    <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);">✗ no structure — skip</span>
+  </div>`;
+}
+
 function cardGateStyle(r){
   const ts=r.trendStructure;
   const structurePass=!ts||(ts.higherHighs&&ts.higherLows);
@@ -3725,6 +3741,7 @@ function exRenderAlerts(){
   const cards=document.getElementById('ex-alert-cards');
   cards.innerHTML='';
   document.getElementById('ex-alerts-section').style.display='block';
+  document.getElementById('gate-legend-ex').innerHTML=buildGateLegend();
   const sigLabels=['RSI<30','MACD cross','MA cross','Vol surge','BB lower','10%+ pull'];
   exResults.sort((a,b)=>b.score-a.score||a.rsi-b.rsi).forEach((r,i)=>{
     const chgClass=r.chgPct>=0?'pos':'neg';
@@ -4013,6 +4030,7 @@ function brRenderCards(){
   const sc=document.getElementById('br-strong-cards');
   if(strong.length){
     document.getElementById('br-strong-section').style.display='block';
+    document.getElementById('gate-legend-br').innerHTML=buildGateLegend();
     sc.innerHTML=strong.map(makeCard).join('');
   } else {
     document.getElementById('br-strong-section').style.display='none';
@@ -4022,6 +4040,7 @@ function brRenderCards(){
   const bc=document.getElementById('br-building-cards');
   if(building.length){
     document.getElementById('br-building-section').style.display='block';
+    document.getElementById('gate-legend-br-build').innerHTML=buildGateLegend();
     bc.innerHTML=building.map(makeCard).join('');
   } else {
     document.getElementById('br-building-section').style.display='none';
@@ -4801,6 +4820,7 @@ function paRender(){
   const cards=document.getElementById('pa-alert-cards');
   if(paAlerts.length>0){
     alertsSec.style.display='block'; noAlerts.style.display='none';
+    document.getElementById('gate-legend-pa').innerHTML=buildGateLegend();
     cards.innerHTML=paAlerts.map(r=>paBuildAlertCard(r)).join('');
   }else{
     alertsSec.style.display='none';
