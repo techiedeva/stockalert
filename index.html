@@ -8,33 +8,33 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#e6e2da;
-  --surface:#f2ede5;
-  --surface2:#d8d2c8;
-  --surface3:#cec8be;
-  --border:rgba(80,60,20,0.12);
-  --border2:rgba(80,60,20,0.2);
-  --text:#1c1914;
-  --text2:#4a4438;
-  --text3:#88806e;
-  --green:#157a50;
-  --green-bg:rgba(21,122,80,0.1);
-  --green-border:rgba(21,122,80,0.28);
-  --amber:#9e6800;
-  --amber-bg:rgba(158,104,0,0.1);
-  --amber-border:rgba(158,104,0,0.3);
-  --red:#b83232;
-  --red-bg:rgba(184,50,50,0.09);
-  --red-border:rgba(184,50,50,0.22);
-  --blue:#1a58a0;
-  --blue-bg:rgba(26,88,160,0.1);
-  --blue-border:rgba(26,88,160,0.35);
-  --accent:#157a50;
+  --bg:#131722;
+  --surface:#1e222d;
+  --surface2:#252932;
+  --surface3:#2a2e39;
+  --border:rgba(255,255,255,0.06);
+  --border2:#363a45;
+  --text:#d1d4dc;
+  --text2:#b2b5be;
+  --text3:#787b86;
+  --green:#26a69a;
+  --green-bg:rgba(38,166,154,0.12);
+  --green-border:rgba(38,166,154,0.35);
+  --amber:#f59e0b;
+  --amber-bg:rgba(245,158,11,0.12);
+  --amber-border:rgba(245,158,11,0.35);
+  --red:#ef5350;
+  --red-bg:rgba(239,83,80,0.12);
+  --red-border:rgba(239,83,80,0.3);
+  --blue:#2196f3;
+  --blue-bg:rgba(33,150,243,0.12);
+  --blue-border:rgba(33,150,243,0.35);
+  --accent:#26a69a;
   --mono:'IBM Plex Mono',monospace;
   --sans:'IBM Plex Sans',sans-serif;
-  --yellow:#806400;
-  --yellow-bg:rgba(200,162,0,0.13);
-  --yellow-border:rgba(160,126,0,0.4);
+  --yellow:#f59e0b;
+  --yellow-bg:rgba(245,158,11,0.15);
+  --yellow-border:rgba(245,158,11,0.4);
 }
 html{background:var(--bg);}
 body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(--bg);font-size:16px;}
@@ -71,8 +71,8 @@ body{font-family:var(--sans);color:var(--text);min-height:100vh;background:var(-
 }
 .btn{padding:8px 18px;border-radius:6px;font-size:14px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);letter-spacing:0.5px;transition:all .15s;}
 .btn:hover{background:var(--surface2);color:var(--text);}
-.btn-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600;}
-.btn-primary:hover{opacity:.85;color:#000;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;}
+.btn-primary:hover{opacity:.85;color:#fff;}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed;}
 .btn-danger{border-color:var(--red-border);color:var(--red);}
 .btn-danger:hover{background:var(--red-bg);}
@@ -174,7 +174,7 @@ tr:hover td{background:var(--surface2);}
 .tab-nav{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:4px;}
 .tab-btn{padding:8px 20px;border-radius:6px;font-size:13px;font-family:var(--mono);cursor:pointer;color:var(--text3);border:none;background:transparent;letter-spacing:0.5px;transition:all .15s;text-align:center;line-height:1.3;white-space:nowrap;}
 .tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.05);}
-.tab-btn.active{background:var(--surface3);color:var(--accent);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+.tab-btn.active{background:var(--surface3);color:var(--accent);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.6);}
 .tab-page{display:none;}
 .tab-page.active{display:block;}
 
@@ -208,7 +208,7 @@ tr:hover td{background:var(--surface2);}
     <button class="tab-btn" onclick="switchTab('scanner',this)" title="Find falling stocks ready to reverse and bounce back up">📉 Reversal <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Catch the bounce</span></button>
     <button class="tab-btn" onclick="switchTab('exchange',this)" title="Scan NASDAQ+NYSE stocks under $50 for launch alerts">🔍 Exchange <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Discover alerts</span></button>
     <button class="tab-btn" id="pa-tab-btn" onclick="switchTab('pamonitor',this)" title="Monitor price action entry signals — candle patterns at key levels with volume">👁 PA Monitor <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Entry signals</span></button>
-    <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
+    <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <div class="status-pill"><div class="status-dot" id="status-dot"></div><span id="status-text">Ready</span></div>
@@ -730,7 +730,7 @@ tr:hover td{background:var(--surface2);}
         style="font-family:var(--mono);font-size:14px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:140px;min-width:100px;flex:1;text-transform:uppercase;outline:none;"
         onkeydown="if(event.key==='Enter')qcCheck()"
         oninput="this.value=this.value.toUpperCase()"/>
-      <button class="btn btn-primary" id="qc-btn" onclick="qcCheck()" style="background:var(--green);border-color:var(--green);color:#000;font-size:13px;white-space:nowrap;">⚡ Check</button>
+      <button class="btn btn-primary" id="qc-btn" onclick="qcCheck()" style="background:var(--green);border-color:var(--green);color:#fff;font-size:13px;white-space:nowrap;">⚡ Check</button>
       <button class="btn" onclick="qcClear()" style="font-size:13px;">Clear</button>
     </div>
     <div id="qc-status" style="font-size:12px;font-family:var(--mono);color:var(--text3);margin-bottom:6px;min-height:16px;"></div>
@@ -768,7 +768,7 @@ tr:hover td{background:var(--surface2);}
         <div id="qc-verdict" style="margin-top:10px;"></div>
 
         <!-- Log button -->
-        <button class="btn btn-primary" id="qc-log-btn" onclick="qcLogTrade()" style="width:100%;margin-top:10px;font-size:13px;padding:7px 0;background:var(--green);border-color:var(--green);color:#000;display:none;">+ Log trade</button>
+        <button class="btn btn-primary" id="qc-log-btn" onclick="qcLogTrade()" style="width:100%;margin-top:10px;font-size:13px;padding:7px 0;background:var(--green);border-color:var(--green);color:#fff;display:none;">+ Log trade</button>
       </div>
 
       <!-- EXPANDED FULL DETAILS -->
@@ -803,7 +803,7 @@ tr:hover td{background:var(--surface2);}
     </div>
 
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn btn-primary" id="br-scan-btn" onclick="brStartScan()" style="background:var(--green);border-color:var(--green);color:#000;">▶ Find bull runs</button>
+      <button class="btn btn-primary" id="br-scan-btn" onclick="brStartScan()" style="background:var(--green);border-color:var(--green);color:#fff;">▶ Find bull runs</button>
       <button class="btn btn-danger" id="br-stop-btn" onclick="brStop()" style="display:none;">■ Stop</button>
       <button class="btn" onclick="brClear()">Clear</button>
       <div class="divider-v"></div>
@@ -905,7 +905,7 @@ tr:hover td{background:var(--surface2);}
       <button class="btn" onclick="paAddManual()">+ Add</button>
       <button class="btn btn-danger" onclick="paClearWatchlist()" style="font-size:12px;">Clear All</button>
       <div style="flex:1;"></div>
-      <button class="btn btn-primary" id="pa-scan-btn" onclick="paStartScan()" style="background:var(--accent);border-color:var(--accent);color:#000;">▶ Scan watchlist</button>
+      <button class="btn btn-primary" id="pa-scan-btn" onclick="paStartScan()" style="background:var(--accent);border-color:var(--accent);color:#fff;">▶ Scan watchlist</button>
       <button class="btn" id="pa-auto-btn" onclick="paToggleAuto()">Auto: Off</button>
       <span style="font-size:11px;color:var(--text3);font-family:var(--mono);" id="pa-auto-label"></span>
       <span id="pa-last-scan" style="font-size:11px;color:var(--text3);font-family:var(--mono);"></span>
@@ -4020,7 +4020,7 @@ function brRenderCards(){
         ${indPanel}
         ${buildSRPanel(r)}
         ${buildEntryZonePanel(r)}
-        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:8px;flex-shrink:0;font-size:13px;padding:9px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+        <button class="btn btn-primary" onclick='jjPrefillByKey("${storeResult(r)}")' style="width:100%;margin-top:8px;flex-shrink:0;font-size:13px;padding:9px 0;background:var(--green);border-color:var(--green);color:#fff;">+ Log trade</button>
         <button class="btn" onclick="paAddTicker('${r.ticker}','${(r.name||'').replace(/['"\\]/g,'')}');" style="width:100%;margin-top:6px;flex-shrink:0;font-size:13px;padding:8px 0;color:var(--accent);border-color:var(--border);">👁 Watch PA</button>
       </div>
     </div>`;
@@ -4913,7 +4913,7 @@ function paBuildAlertCard(r){
   const _gPA=cardGateStyle(r);
   return`<div class="alert-card" style="align-self:start;${_gPA.style}">
     <div class="card-header" style="cursor:default;">
-      <div class="score-badge" style="background:var(--green);color:#000;font-size:11px;padding:4px 8px;">PA</div>
+      <div class="score-badge" style="background:var(--green);color:#fff;font-size:11px;padding:4px 8px;">PA</div>
       <div class="ticker" style="color:var(--green);">${r.ticker}</div>
       <div class="name">${r.name}</div>
       ${_gPA.pill}
@@ -4938,7 +4938,7 @@ function paBuildAlertCard(r){
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono);margin:8px 0 4px;">ATR $${r.atr} · Risk/share $${r.riskPerShare}${r.vwap?' · VWAP $'+r.vwap:''}${r.ma50?' · MA50 $'+r.ma50:''}</div>
       ${buildTrendConfirmPanel(r)}
       <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:10px;">Checked at ${r.checkedAt}</div>
-      <button class="btn btn-primary" onclick='jjPrefillByKey("${key}")' style="width:100%;font-size:13px;padding:8px 0;background:var(--green);border-color:var(--green);color:#000;">+ Log trade</button>
+      <button class="btn btn-primary" onclick='jjPrefillByKey("${key}")' style="width:100%;font-size:13px;padding:8px 0;background:var(--green);border-color:var(--green);color:#fff;">+ Log trade</button>
     </div>
   </div>`;
 }
