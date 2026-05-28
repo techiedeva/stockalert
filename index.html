@@ -1123,6 +1123,10 @@ async function tdGet(ticker){
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429) throw new Error('rate_limit');
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       apiCalls++;
       document.getElementById('s-calls').textContent=apiCalls;
@@ -1340,6 +1344,10 @@ async function fetchMTF(ticker, logFn){
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429){_log(`MTF ${ticker}: rate limit (HTTP 429) — skipping`,'warn');return null;}
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
@@ -1711,6 +1719,14 @@ async function fetchDailyTrend(ticker){
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429){
+          log(`L2 Daily ${ticker}: rate limit (HTTP 429) — pausing 15s...`,'warn');
+          await sleep(15000);
+          continue;
+        }
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
@@ -3304,6 +3320,10 @@ async function teFetch(){
       if(exchange) params.exchange=exchange;
       const qs=new URLSearchParams({...params,apikey:key}).toString();
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429) throw new Error('API rate limit hit (HTTP 429). Wait a minute and try again.');
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
@@ -3575,12 +3595,17 @@ async function exQuote(ticker,exchange){
   if(!key) throw new Error('no_key');
   const qs=new URLSearchParams({symbol:ticker,exchange,apikey:key}).toString();
   const res=await fetch(`${TD_BASE}/quote?${qs}`,{cache:'no-store'});
+  if(!res.ok){
+    if(res.status===429) throw new Error('rate_limit');
+    throw new Error('HTTP '+res.status);
+  }
   const data=await res.json();
   exApiCalls++;
   document.getElementById('ex-s-calls').textContent=exApiCalls;
   if(data.status==='error'||data.code){
     const msg=(data.message||'').toLowerCase();
     if(msg.includes('api key')||msg.includes('apikey')) throw new Error('invalid_key');
+    if(msg.includes('limit')||msg.includes('quota')) throw new Error('rate_limit');
     return null;
   }
   const price=parseFloat(data.close||data.price||0);
@@ -3592,6 +3617,10 @@ async function exGetBars(ticker,exchange){
   const key=getKey();
   const qs=new URLSearchParams({symbol:ticker,interval:'15min',outputsize:'200',exchange,apikey:key}).toString();
   const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+  if(!res.ok){
+    if(res.status===429) throw new Error('rate_limit');
+    throw new Error('HTTP '+res.status);
+  }
   const data=await res.json();
   exApiCalls++;
   document.getElementById('ex-s-calls').textContent=exApiCalls;
@@ -3654,6 +3683,7 @@ async function exStartScan(){
     }catch(e){
       if(e.message==='aborted') break;
       if(e.message==='invalid_key'||e.message==='no_key'){exLog('API key error.','err');exAbort=true;break;}
+      if(e.message==='rate_limit'){exLog('Rate limit — pausing 15s...','warn');await sleep(15000);i--;continue;}
       exLog(ticker+' quote failed: '+e.message,'warn');
     }
     if(i<EX_UNIVERSE.length-1&&!exAbort) await sleep(PACE);
@@ -3709,6 +3739,7 @@ async function exStartScan(){
     }catch(e){
       if(e.message==='aborted') break;
       if(e.message==='invalid_key'||e.message==='no_key'){exLog('API key error.','err');exAbort=true;break;}
+      if(e.message==='rate_limit'){exLog('Rate limit — pausing 15s...','warn');await sleep(15000);i--;continue;}
       exLog(ticker+' bars failed: '+e.message,'warn');
     }
     if(i<under50.length-1&&!exAbort) await sleep(PACE);
@@ -3945,7 +3976,10 @@ async function brFetchBars(ticker){
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(!res.ok){
+        if(res.status===429) throw new Error('rate_limit');
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       brApiCalls++;
       document.getElementById('br-calls').textContent=brApiCalls;
@@ -4316,6 +4350,10 @@ async function qcCheck(){
       if(exchange) params.exchange=exchange;
       const qs=new URLSearchParams({...params,apikey:key}).toString();
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429) throw new Error('API rate limit hit (HTTP 429). Wait a minute and try again.');
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
@@ -4341,6 +4379,7 @@ async function qcCheck(){
           if(exchange) params.exchange=exchange;
           const qs=new URLSearchParams({...params,apikey:key}).toString();
           const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+          if(!res.ok) break;
           const data=await res.json();
           if(data.values&&data.values.length>=2){
             const closes=[...data.values].reverse().map(v=>parseFloat(v.close));
@@ -4698,7 +4737,10 @@ async function paFetchBars(ticker){
     const qs=new URLSearchParams({...params,apikey:key}).toString();
     try{
       const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
+      if(!res.ok){
+        if(res.status===429) throw new Error('rate_limit');
+        throw new Error('HTTP '+res.status);
+      }
       const data=await res.json();
       if(data.status==='error'||data.code){
         const msg=(data.message||'').toLowerCase();
