@@ -2207,10 +2207,11 @@ function cardGateStyle(r){
   const adxPass=r.adx===null||r.adx>=20;
   const h1ts=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
   const h1Uptrend=!!(h1ts&&h1ts.higherHighs&&h1ts.higherLows);
-  const pass=structurePass&&adxPass;
+  const h1StructurePass=!h1ts||(h1ts.higherHighs&&h1ts.higherLows);
+  const pass=structurePass&&adxPass&&h1StructurePass;
   // 1H uptrend + ADX ok but 15m pulling back = best entry setup, show blue
   const pullback=!structurePass&&adxPass&&h1Uptrend;
-  const partial=!pass&&!pullback&&(structurePass!==adxPass);
+  const partial=!pass&&!pullback&&(structurePass!==adxPass||(!h1StructurePass&&structurePass&&adxPass));
   let gateColor,pillBg,pillBdr,pillClr,pillTxt,shadow;
   if(pass){
     gateColor='var(--green)';pillBg='var(--green-bg)';pillBdr='var(--green-border)';pillClr='var(--green)';
@@ -2220,7 +2221,7 @@ function cardGateStyle(r){
     pillTxt='⏳ 1H up · 15m pullback';shadow='';
   } else if(partial){
     gateColor='var(--amber)';pillBg='var(--amber-bg)';pillBdr='var(--amber-border)';pillClr='var(--amber)';
-    const why=[];if(!structurePass)why.push('no HH+HL');if(!adxPass)why.push('ADX<20');
+    const why=[];if(!structurePass)why.push('no HH+HL');if(!adxPass)why.push('ADX<20');if(!h1StructurePass&&structurePass&&adxPass)why.push('1H incomplete');
     pillTxt='⚠ '+why.join(' · ');shadow='';
   } else {
     gateColor='var(--border2)';pillBg='var(--surface2)';pillBdr='var(--border2)';pillClr='var(--text3)';
