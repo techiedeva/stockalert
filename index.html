@@ -1400,6 +1400,69 @@ async function fetchMTF(ticker, logFn){
   }
   return null;
 }
+
+// ── 4-HOUR MULTI-TIMEFRAME FETCH ───────────────────────────────────────────
+const mtf4hCache={};
+
+async function fetch4H(ticker, logFn){
+  const _log=logFn||log;
+  if(mtf4hCache[ticker]) return mtf4hCache[ticker];
+  const key=getKey();
+  if(!key) return null;
+  for(const exchange of ['','NASDAQ','NYSE','AMEX']){
+    const params={symbol:ticker,interval:'4h',outputsize:'50'};
+    if(exchange) params.exchange=exchange;
+    const qs=new URLSearchParams({...params,apikey:key}).toString();
+    try{
+      const res=await fetch(`${TD_BASE}/time_series?${qs}`,{cache:'no-store'});
+      if(!res.ok){
+        if(res.status===429){_log(`4H ${ticker}: rate limit (HTTP 429) — skipping`,'warn');return null;}
+        throw new Error('HTTP '+res.status);
+      }
+      const data=await res.json();
+      if(data.status==='error'||data.code){
+        const msg=(data.message||'').toLowerCase();
+        if(msg.includes('api key')) throw new Error('invalid_key');
+        if(msg.includes('limit')||msg.includes('quota')){_log(`4H ${ticker}: rate limit — skipping`,'warn');return null;}
+        continue;
+      }
+      if(data.values&&data.values.length>=10){
+        const vals=[...data.values].reverse();
+        const closes=vals.map(v=>parseFloat(v.close));
+        const highs =vals.map(v=>parseFloat(v.high));
+        const lows  =vals.map(v=>parseFloat(v.low));
+        const ma20arr=calcEMA(closes,20);
+        const ma50arr=calcEMA(closes,Math.min(50,closes.length));
+        const cp=closes[closes.length-1];
+        const cMA20=lastVal(ma20arr);
+        const cMA50=lastVal(ma50arr);
+        const e12=calcEMA(closes,12),e26=calcEMA(closes,26);
+        const macdLine=closes.map((_,i)=>e12[i]!=null&&e26[i]!=null?e12[i]-e26[i]:null);
+        const cMACD=lastVal(macdLine);
+        const trendStructure=detectTrendStructure(highs,lows,closes);
+        const result={
+          aboveMA20:cMA20!=null&&cp>cMA20,
+          aboveMA50:cMA50!=null&&cp>cMA50,
+          macdPositive:cMACD!=null&&cMACD>0,
+          ma20:cMA20?parseFloat(cMA20.toFixed(2)):null,
+          ma50:cMA50?parseFloat(cMA50.toFixed(2)):null,
+          macd:cMACD?parseFloat(cMACD.toFixed(3)):null,
+          trendStructure,
+        };
+        const score=[result.aboveMA20,result.aboveMA50,result.macdPositive].filter(Boolean).length;
+        result.confirmed=score>=2;
+        result.score=score;
+        mtf4hCache[ticker]=result;
+        _log(`MTF 4H ${ticker}: MA20=${result.aboveMA20?'✓':'✗'} MA50=${result.aboveMA50?'✓':'✗'} MACD=${result.macdPositive?'✓':'✗'} · 4H Structure: ${trendStructure?trendStructure.structure:'?'} → ${result.confirmed?'CONFIRMED':'CONFLICT'}`,(result.confirmed?'good':'warn'));
+        return result;
+      }
+    }catch(e){
+      if(e.message==='invalid_key') throw e;
+    }
+  }
+  return null;
+}
+
 // VWAP = cumulative(price × volume) / cumulative(volume)
 // Uses typical price (H+L+C)/3 per bar
 function calcVWAP(highs,lows,closes,volumes){
@@ -1886,6 +1949,7 @@ async function startScan(){
   apiCalls=0;
   l2DailyCache={};
   Object.keys(mtfCache).forEach(k=>delete mtfCache[k]);
+  Object.keys(mtf4hCache).forEach(k=>delete mtf4hCache[k]);
   l2VIX=null;l2VIXStatus='unknown';l2EconEvents=[];l2QQQChange=null;l2MinScore=5;
   pushAlertedThisScan={};
   const scanStart=Date.now();
@@ -1943,7 +2007,8 @@ async function startScan(){
 
       const result=analyzeStock(ticker,name,values);
 
-      // ── MTF: 1-hour confirmation gate ─────────────
+      // ── MTF: 4H then 1H confirmation gates ────────
+      const h4=await fetch4H(ticker, log);
       const mtf=await fetchMTF(ticker, log);
       if(mtf&&!mtf.confirmed){
         log(`${ticker}: MTF BLOCK — 1H conflicts with 15-min (1H score ${mtf.score}/3). Filtered out.`,'warn');
@@ -1965,6 +2030,7 @@ async function startScan(){
         volProfile,
         vixStatus:l2VIXStatus,
         minScore:l2MinScore,
+        h4,
         mtf
       };
 
@@ -2089,6 +2155,7 @@ function renderResults(){
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
             ${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}
             ${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}
+            ${r.l2&&r.l2.h4!==undefined?build4HBadge(r.l2.h4):''}
             ${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}
           </div>
           ${buildTrendConfirmPanel(r)}
@@ -2180,7 +2247,17 @@ function buildMTFBadge(mtf){
   return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${bg};border:1px solid ${border};color:${color};" title="1-hour chart: MA20=${mtf.aboveMA20?'✓':'✗'} MA50=${mtf.aboveMA50?'✓':'✗'} MACD=${mtf.macdPositive?'✓':'✗'}">${label}</span>`;
 }
 
-// ── TREND CONFIRMATION PANEL — Daily + 1H + 15m Structure + ADX ──────────
+// ── 4H BADGE ──────────────────────────────────────────────────────────────
+function build4HBadge(h4){
+  if(!h4) return '<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);">4H: N/A</span>';
+  const color=h4.confirmed?'var(--green)':'var(--amber)';
+  const bg=h4.confirmed?'var(--green-bg)':'var(--amber-bg)';
+  const border=h4.confirmed?'var(--green-border)':'var(--amber-border)';
+  const label=h4.confirmed?`4H ✓ Confirmed (${h4.score}/3)`:`4H ⚠ Weak (${h4.score}/3)`;
+  return`<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:${bg};border:1px solid ${border};color:${color};" title="4-hour chart: MA20=${h4.aboveMA20?'✓':'✗'} MA50=${h4.aboveMA50?'✓':'✗'} MACD=${h4.macdPositive?'✓':'✗'}">${label}</span>`;
+}
+
+// ── TREND CONFIRMATION PANEL — Daily + 4H + 1H + 15m Structure + ADX ─────
 function buildGateLegend(){
   const item=(clr,bdr,bg,icon,title,sub)=>
     `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${bg};border:1px solid ${bdr};border-left:4px solid ${clr};border-radius:6px;min-width:200px;flex:1;">
@@ -2205,13 +2282,15 @@ function cardGateStyle(r){
   const ts=r.trendStructure;
   const structurePass=!ts||(ts.higherHighs&&ts.higherLows);
   const adxPass=r.adx===null||r.adx>=20;
+  const h4ts=r.l2&&r.l2.h4&&r.l2.h4.trendStructure?r.l2.h4.trendStructure:null;
+  const h4StructurePass=!h4ts||(h4ts.higherHighs&&h4ts.higherLows);
   const h1ts=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
   const h1Uptrend=!!(h1ts&&h1ts.higherHighs&&h1ts.higherLows);
   const h1StructurePass=!h1ts||(h1ts.higherHighs&&h1ts.higherLows);
-  const pass=structurePass&&adxPass&&h1StructurePass;
+  const pass=structurePass&&adxPass&&h4StructurePass&&h1StructurePass;
   // 1H uptrend + ADX ok but 15m pulling back = best entry setup, show blue
   const pullback=!structurePass&&adxPass&&h1Uptrend;
-  const partial=!pass&&!pullback&&(structurePass!==adxPass||(!h1StructurePass&&structurePass&&adxPass));
+  const partial=!pass&&!pullback&&(structurePass||h4StructurePass||h1StructurePass||adxPass);
   let gateColor,pillBg,pillBdr,pillClr,pillTxt,shadow;
   if(pass){
     gateColor='var(--green)';pillBg='var(--green-bg)';pillBdr='var(--green-border)';pillClr='var(--green)';
@@ -2221,7 +2300,7 @@ function cardGateStyle(r){
     pillTxt='⏳ 1H up · 15m pullback';shadow='';
   } else if(partial){
     gateColor='var(--amber)';pillBg='var(--amber-bg)';pillBdr='var(--amber-border)';pillClr='var(--amber)';
-    const why=[];if(!structurePass)why.push('no HH+HL');if(!adxPass)why.push('ADX<20');if(!h1StructurePass&&structurePass&&adxPass)why.push('1H incomplete');
+    const why=[];if(!structurePass)why.push('no HH+HL');if(!h4StructurePass)why.push('4H incomplete');if(!h1StructurePass)why.push('1H incomplete');if(!adxPass)why.push('ADX<20');
     pillTxt='⚠ '+why.join(' · ');shadow='';
   } else {
     gateColor='var(--border2)';pillBg='var(--surface2)';pillBdr='var(--border2)';pillClr='var(--text3)';
@@ -2234,6 +2313,7 @@ function cardGateStyle(r){
 
 function buildTrendConfirmPanel(r){
   const daily=r.l2&&r.l2.dailyTrend;
+  const h4=r.l2&&r.l2.h4!==undefined?r.l2.h4:null;
   const mtf=r.l2&&r.l2.mtf!==undefined?r.l2.mtf:null;
   const ts=r.trendStructure;
   const adx=r.adx!=null?r.adx:null;
@@ -2241,6 +2321,17 @@ function buildTrendConfirmPanel(r){
   const dailyOk=!!(daily&&daily.aboveMA50);
   const dailyText=daily?(dailyOk?`↑ Above Daily MA50 (+${daily.pctFromMA50}%)`:`↓ Below Daily MA50 (${daily.pctFromMA50}%)`):'— run a scan to load';
   const dailyClr=daily?(dailyOk?'var(--green)':'var(--red)'):'var(--text3)';
+
+  const h4Ok=!!(h4&&h4.confirmed);
+  const h4Detail=h4?` · MA20 ${h4.aboveMA20?'✓':'✗'} MA50 ${h4.aboveMA50?'✓':'✗'} MACD ${h4.macdPositive?'✓':'✗'}`:'';
+  const h4Text=h4?`${h4Ok?'✓ Confirmed':'⚠ Weak'} (${h4.score}/3${h4Detail})`:'— not available';
+  const h4Clr=h4?(h4Ok?'var(--green)':'var(--amber)'):'var(--text3)';
+
+  const h4ts=h4&&h4.trendStructure?h4.trendStructure:null;
+  const h4tsOk=!!(h4ts&&h4ts.higherHighs&&h4ts.higherLows);
+  const h4tsDetail=h4ts&&h4ts.higherHighs!==undefined?` · HH ${h4ts.higherHighs?'✓':'✗'} HL ${h4ts.higherLows?'✓':'✗'}`:'';
+  const h4tsText=h4ts?`${h4ts.structure}${h4tsDetail}`:'— not available';
+  const h4tsClr=h4ts?(h4ts.structure==='Uptrend'?'var(--green)':h4ts.ascending?'var(--amber)':'var(--red)'):'var(--text3)';
 
   const mtfOk=!!(mtf&&mtf.confirmed);
   const mtfDetail=mtf?` · MA20 ${mtf.aboveMA20?'✓':'✗'} MA50 ${mtf.aboveMA50?'✓':'✗'} MACD ${mtf.macdPositive?'✓':'✗'}`:'';
@@ -2266,8 +2357,8 @@ function buildTrendConfirmPanel(r){
   const structureGate=!ts||(ts.higherHighs&&ts.higherLows);
   const adxGate=adx===null||adx>=20;
 
-  const okCount=[dailyOk,mtfOk,h1tsOk,tsOk,adxOk].filter(Boolean).length;
-  const hasData=!!(daily||mtf||ts||adx!==null);
+  const okCount=[dailyOk,h4Ok,h4tsOk,mtfOk,h1tsOk,tsOk,adxOk].filter(Boolean).length;
+  const hasData=!!(daily||h4||mtf||ts||adx!==null);
 
   let vtxt,vclr,vbg,vbdr;
   if(!hasData){
@@ -2278,9 +2369,9 @@ function buildTrendConfirmPanel(r){
     vtxt='✗ No uptrend structure — neither 1H nor 15m is making HH+HL. Skip this setup.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
   } else if(!adxGate){
     vtxt='✗ ADX '+(adx!==null?adx:'—')+' — trend too weak/choppy. Wait for ADX ≥ 20 before entering.';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
-  } else if(okCount>=4){
+  } else if(okCount>=5){
     vtxt='✓ Strong trend confirmation — good conditions to enter';vclr='var(--green)';vbg='var(--green-bg)';vbdr='var(--green-border)';
-  } else if(okCount>=2){
+  } else if(okCount>=3){
     vtxt='⚠ Partial confirmation — consider half position size or wait';vclr='var(--amber)';vbg='var(--amber-bg)';vbdr='var(--amber-border)';
   } else {
     vtxt='✗ Weak trend — high false-positive risk, consider skipping';vclr='var(--red)';vbg='var(--red-bg)';vbdr='var(--red-border)';
@@ -2288,6 +2379,8 @@ function buildTrendConfirmPanel(r){
 
   const rows=[
     {label:'Daily Trend',   val:dailyText,  clr:dailyClr},
+    {label:'4H Chart',      val:h4Text,     clr:h4Clr},
+    {label:'4H Structure',  val:h4tsText,   clr:h4tsClr},
     {label:'1H Chart',      val:mtfText,    clr:mtfClr},
     {label:'1H Structure',  val:h1tsText,   clr:h1tsClr},
     {label:'15m Structure', val:tsText,     clr:tsClr},
@@ -2731,6 +2824,8 @@ function buildVerdict(r,mode){
   const ts=r.trendStructure;
   const structureGate=!ts||(ts.higherHighs&&ts.higherLows);
   const adxGate=r.adx===null||r.adx>=20;
+  const h4V=r.l2&&r.l2.h4&&r.l2.h4.trendStructure?r.l2.h4.trendStructure:null;
+  const h4StructureGate=!h4V||(h4V.higherHighs&&h4V.higherLows);
   const h1tsV=r.l2&&r.l2.mtf&&r.l2.mtf.trendStructure?r.l2.mtf.trendStructure:null;
   const h1StructureGate=!h1tsV||(h1tsV.higherHighs&&h1tsV.higherLows);
   let icon,label,color,bg,border,subtext;
@@ -2740,6 +2835,9 @@ function buildVerdict(r,mode){
   } else if(!structureGate){
     icon='🟡';label='CAUTION — STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
     subtext='Neither 1H nor 15m is making Higher Highs + Higher Lows. Wait for the higher timeframe to establish an uptrend before looking for entries.';
+  } else if(!h4StructureGate){
+    icon='🟡';label='CAUTION — 4H STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
+    subtext='4H chart is not making Higher Highs + Higher Lows ('+(h4V?h4V.structure:'unknown')+'). The 15m and 1H setups may be valid but the 4H trend has not confirmed. Consider waiting or using a smaller position size.';
   } else if(!h1StructureGate){
     icon='🟡';label='CAUTION — 1H STRUCTURE INCOMPLETE';color='var(--amber)';bg='var(--amber-bg)';border='var(--amber-border)';
     subtext='1H chart is not making Higher Highs + Higher Lows ('+(h1tsV?h1tsV.structure:'unknown')+'). The 15m setup is valid but the 1H trend has not confirmed. Consider waiting for 1H to also establish HH+HL before entering.';
@@ -3801,7 +3899,7 @@ function exRenderAlerts(){
         ${buildDataTimestamp()}
         ${r.l2?buildVIXBanner():''}
         ${r.l2&&r.l2.econWarning?buildEconWarning(r.ticker):''}
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${r.l2&&r.l2.dailyTrend?buildTrendBadge(r.l2.dailyTrend):''}${r.l2&&r.l2.rs!==null?buildRSBadge(r.l2.rs):''}${r.l2&&r.l2.h4!==undefined?build4HBadge(r.l2.h4):''}${r.l2&&r.l2.mtf!==undefined?buildMTFBadge(r.l2.mtf):''}</div>
         ${buildTrendConfirmPanel(r)}
         ${buildVerdict(r,'reversal')}
         <div class="levels">
@@ -4165,6 +4263,7 @@ async function brStartScan(){
   if(!key){alert('Paste your Twelve Data API key first.');return;}
   brAbort=false; brResults=[]; brApiCalls=0;
   l2DailyCache={}; // reset daily trend cache for fresh scan
+  Object.keys(mtf4hCache).forEach(k=>delete mtf4hCache[k]);
   const scanStart=Date.now();
 
   document.getElementById('br-progress-card').style.display='block';
@@ -4242,7 +4341,8 @@ async function brStartScan(){
         vals.map(v=>parseFloat(v.volume)||0)
       );
 
-      // ── MTF: 1-hour confirmation gate ─────────────
+      // ── MTF: 4H then 1H confirmation gates ────────
+      const h4=await fetch4H(ticker, brLog);
       const mtf=await fetchMTF(ticker, brLog);
       if(mtf&&!mtf.confirmed){
         brLog(`${ticker}: MTF BLOCK — 1H conflicts with 15-min (1H score ${mtf.score}/3). Filtered out.`,'warn');
@@ -4256,6 +4356,7 @@ async function brStartScan(){
         volProfile,
         vixStatus:l2VIXStatus,
         minScore:l2MinScore,
+        h4,
         mtf
       };
 
@@ -4391,7 +4492,10 @@ async function qcCheck(){
       }catch(e){/* RS unavailable — non-critical */}
     }
 
-    // Step 3b — Fetch 1H MTF confirmation
+    // Step 3b — Fetch 4H and 1H MTF confirmation
+    document.getElementById('qc-status').textContent='Checking 4H trend...';
+    await sleep(1500);
+    const h4=await fetch4H(ticker);
     document.getElementById('qc-status').textContent='Checking 1H trend...';
     await sleep(1500);
     const mtf=await fetchMTF(ticker);
@@ -4409,6 +4513,7 @@ async function qcCheck(){
     );
     r.l2={
       dailyTrend,
+      h4,
       mtf,
       rs:calcRelativeStrength(r.chgPct),
       econWarning:getEconWarning(ticker),
@@ -4472,6 +4577,7 @@ function qcRender(r){
       l2Html+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
       if(r.l2.dailyTrend) l2Html+=buildTrendBadge(r.l2.dailyTrend);
       if(r.l2.rs!==null) l2Html+=buildRSBadge(r.l2.rs);
+      if(r.l2.h4!==undefined) l2Html+=build4HBadge(r.l2.h4);
       if(r.l2.mtf!==undefined) l2Html+=buildMTFBadge(r.l2.mtf);
       l2Html+='</div>';
       // Daily trend gate warning in verdict
