@@ -209,6 +209,7 @@ tr:hover td{background:var(--surface2);}
     <button class="tab-btn" onclick="switchTab('exchange',this)" title="Scan NASDAQ+NYSE stocks under $50 for launch alerts">🔍 Exchange <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Discover alerts</span></button>
     <button class="tab-btn" id="pa-tab-btn" onclick="switchTab('pamonitor',this)" title="Monitor price action entry signals — candle patterns at key levels with volume">👁 PA Monitor <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Entry signals</span></button>
     <button class="tab-btn" onclick="switchTab('journal',this)" id="journal-tab-btn" title="Log trades, plan positions with Risk & Profit Planner, track P&amp;L">📒 Journal <span id="journal-count" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:3px;"></span><span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Track trades</span></button>
+    <button class="tab-btn" onclick="switchTab('help',this)" title="How to use this scanner — cheat sheet and workflow guide">📖 Help <span style="font-size:10px;color:var(--text3);display:block;font-weight:400;">Cheat sheet</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <div class="status-pill"><div class="status-dot" id="status-dot"></div><span id="status-text">Ready</span></div>
@@ -959,6 +960,216 @@ tr:hover td{background:var(--surface2);}
     </div>
   </div>
 </div><!-- end tab-pamonitor -->
+
+<!-- ===== HELP / CHEAT SHEET TAB ===== -->
+<div id="tab-help" class="tab-page">
+<div style="max-width:900px;margin:0 auto;padding:24px 20px;font-family:var(--sans);">
+
+  <div style="margin-bottom:28px;">
+    <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;">📖 How to Use This Scanner</div>
+    <div style="font-size:13px;color:var(--text3);font-family:var(--mono);">Quick reference — workflow, signals, entry rules</div>
+  </div>
+
+  <!-- GOLDEN RULE -->
+  <div style="background:var(--surface);border:1px solid var(--green-border);border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:6px;">The Golden Rule</div>
+    <div style="font-size:15px;color:var(--text);line-height:1.6;">Scanner finds candidates &rarr; Quick Check confirms &rarr; 5m chart times entry &rarr; Journal tracks result</div>
+  </div>
+
+  <!-- TAB OVERVIEW -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Tab Overview</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px;">
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">🚀 Bull Run</div>
+      <div style="font-size:13px;color:var(--text2);">Find stocks with momentum building + trend confirmed</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">Pre-market + 9:45am ET</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">📉 Reversal</div>
+      <div style="font-size:13px;color:var(--text2);">Oversold stocks bouncing from support</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">Pre-market + 9:45am ET</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">🔍 Exchange</div>
+      <div style="font-size:13px;color:var(--text2);">Curated watchlist scan (NVDA, AMD, SOXL…)</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">Pre-market + 9:45am ET</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">⚡ Quick Check</div>
+      <div style="font-size:13px;color:var(--text2);">Single-ticker gate check before entry</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">Right before entering</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">👁 PA Monitor</div>
+      <div style="font-size:13px;color:var(--text2);">Watch tickers for live price action entry signals</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">During market hours</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 160px;padding:10px 16px;align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">📒 Journal</div>
+      <div style="font-size:13px;color:var(--text2);">Log trades, track P&amp;L</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right;">After entry / exit</div>
+    </div>
+  </div>
+
+  <!-- GATE BORDER COLORS -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Gate Border Colors — Act on These First</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:24px;">
+    <div style="background:var(--surface);border:1px solid var(--green);border-left:4px solid var(--green);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:4px;">🟢 Green border</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">15m HH+HL ✓ AND ADX ≥ 20 ✓</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--green);">Open first — highest priority</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--blue);border-left:4px solid var(--blue);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:4px;">🔵 Blue border</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">1H uptrend intact, 15m pulling back</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--blue);">Watch — entry setup forming</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--amber);border-left:4px solid var(--amber);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--amber);margin-bottom:4px;">🟡 Amber border</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">One gate failing</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--amber);">Proceed with caution</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-left:4px solid var(--border2);border-radius:8px;padding:12px 14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text3);margin-bottom:4px;">⬜ Grey border</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">Both gates failing</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">Skip — wait for structure</div>
+    </div>
+  </div>
+
+  <!-- TREND CONFIRMATION PANEL -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Trend Confirmation Panel (5 Checks)</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:160px 1fr 100px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">Daily trend</div>
+      <div style="font-size:13px;color:var(--text2);">Stock is in a longer-term uptrend</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:160px 1fr 100px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">1H chart</div>
+      <div style="font-size:13px;color:var(--text2);">1-hour bars are trending up</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:160px 1fr 100px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">1H structure</div>
+      <div style="font-size:13px;color:var(--text2);">1H swing highs and lows are each higher than last</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:right;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:160px 1fr 100px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;background:rgba(239,83,80,0.05);">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">15m structure</div>
+      <div style="font-size:13px;color:var(--text2);">15m HH+HL confirmed</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--red);text-align:right;font-weight:700;">HARD GATE</div>
+    </div>
+    <div style="display:grid;grid-template-columns:160px 1fr 100px;padding:10px 16px;align-items:center;background:rgba(239,83,80,0.05);">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);">ADX ≥ 20</div>
+      <div style="font-size:13px;color:var(--text2);">Trend has strength, not choppy</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--red);text-align:right;font-weight:700;">HARD GATE</div>
+    </div>
+  </div>
+  <div style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:6px;padding:10px 14px;margin-bottom:24px;font-size:13px;color:var(--amber);">
+    ⚠ Both hard gates (15m structure + ADX) must pass for a green verdict — a high score alone is not enough.
+  </div>
+
+  <!-- ENTRY WORKFLOW -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Full Entry Workflow</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:24px;">
+    <div style="display:flex;gap:14px;margin-bottom:16px;align-items:flex-start;">
+      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);background:var(--green-bg);border:1px solid var(--green-border);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div>
+      <div style="flex:1;">
+        <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">Morning scan</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">Pre-market or 9:45am ET</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5;">Run Bull Run / Exchange scanner. Note all green + blue border cards. Expand and check the Trend Confirmation Panel.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:16px;align-items:flex-start;">
+      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);background:var(--green-bg);border:1px solid var(--green-border);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div>
+      <div style="flex:1;">
+        <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">Quick Check</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">Right before entry</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5;">Type ticker → ⚡ Check. Confirm gates still green — conditions can change between your morning scan and entry.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:16px;align-items:flex-start;">
+      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);background:var(--green-bg);border:1px solid var(--green-border);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div>
+      <div style="flex:1;">
+        <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">5m chart execution</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">Entry timing</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5;">Check 5m MACD histogram direction. Only enter when histogram is GROWING ↑. Look for 5m HH+HL forming or pullback to VWAP/MA.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);background:var(--green-bg);border:1px solid var(--green-border);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">4</div>
+      <div style="flex:1;">
+        <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:14px;font-weight:600;color:var(--text);">Log the trade</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">After entry</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5;">Click + Log trade on the card. Fill in entry price, size, notes. Track your exit in the Journal.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5m MACD TABLE -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">5m MACD Timing Rule</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--surface2);padding:8px 16px;border-bottom:1px solid var(--border);">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">15m Scanner</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">5m MACD histogram</div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Action</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-size:13px;color:var(--text2);">✓ Green gates</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text);">Growing ↑</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);">ENTER</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-size:13px;color:var(--text2);">✓ Green gates</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text);">Shrinking ↓</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--amber);">WAIT</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-size:13px;color:var(--text2);">✓ Green gates</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text);">Below zero</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text3);">SKIP — reset needed</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 16px;align-items:center;">
+      <div style="font-size:13px;color:var(--text2);">✗ Amber / Grey</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text);">Any</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red);">DO NOT ENTER</div>
+    </div>
+  </div>
+
+  <!-- WHEN NOT TO TRADE -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">When NOT to Trade</div>
+  <div style="background:var(--surface);border:1px solid var(--red-border);border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+    <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>ADX &lt; 20 on 15m &rarr; market is choppy, signals fail more often</span></div>
+    <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>VIX spiking &rarr; reduce position size or stay out entirely</span></div>
+    <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>Before 9:45am ET &rarr; price can gap and whipsaw at open</span></div>
+    <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>5m MACD histogram shrinking &darr; &rarr; wait for it to turn back up</span></div>
+    <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>Grey border card &rarr; structure not confirmed, do not force entry</span></div>
+    <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:var(--text2);"><span style="color:var(--red);flex-shrink:0;">✗</span><span>Scanner gives CAUTION &rarr; one hard gate failing, skip or wait</span></div>
+  </div>
+
+  <!-- RISK RULES -->
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Risk Rules</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);"><div style="font-size:13px;color:var(--text2);">Max risk per trade</div><div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500;">2% of account</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);"><div style="font-size:13px;color:var(--text2);">Stop loss</div><div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500;">Below last swing low (shown on card)</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);"><div style="font-size:13px;color:var(--text2);">Target</div><div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500;">2:1 reward-to-risk (shown on card)</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;"><div style="font-size:13px;color:var(--text2);">Shares to buy</div><div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500;">Account × 2% ÷ Risk per share</div></div>
+  </div>
+
+  <div style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;padding:24px 0;">
+    SK Alpha &middot; For educational use &middot; Always verify signals on your own chart before entering
+  </div>
+
+</div>
+</div><!-- end tab-help -->
 
 <script>
 // ---- CUSTOM WATCHLIST ----
