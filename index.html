@@ -419,7 +419,7 @@ tr:hover td{background:var(--surface2);}
         <div style="font-size:10px;color:var(--text3);margin-top:3px;">→ auto-calc amount</div>
       </div>
 
-      <!-- Row 3: ATR Multiplier + Profit Goal -->
+      <!-- Row 3: ATR Multiplier + Profit Goal + Max Loss -->
       <div>
         <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">ATR MULTIPLIER</label>
         <select class="jnl-select" id="te-mult" style="width:100%;box-sizing:border-box;" onchange="teRecompute()">
@@ -432,7 +432,12 @@ tr:hover td{background:var(--surface2);}
       <div>
         <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">PROFIT GOAL ($) <span style="color:var(--accent);">opt</span></label>
         <input type="number" class="jnl-input" id="te-custom-target" placeholder="e.g. 100" step="1" min="1" style="width:100%;box-sizing:border-box;" oninput="teRecompute()"/>
-        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Desired $ profit</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Desired $ profit → sell price</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:5px;">MAX LOSS ($) <span style="color:var(--red);font-size:9px;">opt</span></label>
+        <input type="number" class="jnl-input" id="te-loss-limit" placeholder="e.g. 50" step="1" min="1" style="width:100%;box-sizing:border-box;border-color:var(--red-border);" oninput="teRecompute()"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Max $ loss → stop-sell price</div>
       </div>
 
       <!-- Row 4: Target Price — full width -->
@@ -508,6 +513,15 @@ tr:hover td{background:var(--surface2);}
             <div style="color:var(--text3);margin-bottom:4px;">Stop-loss to maintain proper R:R at this sell price:</div>
             <div style="font-size:13px;font-weight:600;" id="te-tc-stop-rr2">—</div>
           </div>
+        </div>
+
+        <!-- LOSS LIMIT CARD -->
+        <div id="te-loss-card" style="display:none;background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;">
+          <div style="font-size:10px;font-family:var(--mono);letter-spacing:1px;color:var(--red);margin-bottom:6px;">LOSS LIMIT 🛑</div>
+          <div style="font-size:13px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">To cap loss at <strong style="color:var(--red);" id="te-loss-amount">—</strong>:</div>
+          <div style="font-size:24px;font-weight:600;font-family:var(--mono);color:var(--red);" id="te-loss-stop">Sell at —</div>
+          <div style="font-size:12px;color:var(--text2);font-family:var(--mono);margin-top:4px;" id="te-loss-breakdown">—</div>
+          <div style="font-size:12px;font-family:var(--mono);margin-top:8px;padding-top:8px;border-top:1px solid var(--red-border);" id="te-loss-vs-atr">—</div>
         </div>
 
         <!-- TARGET PRICE CARD -->
@@ -3603,6 +3617,8 @@ function teClearResults(){
   document.getElementById('te-status').textContent='';
   document.getElementById('te-custom-target').value='';
   document.getElementById('te-custom-card').style.display='none';
+  document.getElementById('te-loss-limit').value='';
+  document.getElementById('te-loss-card').style.display='none';
   document.getElementById('te-target-price').value='';
   document.getElementById('te-target-price-card').style.display='none';
   document.getElementById('te-shares-input').value='';
@@ -3772,6 +3788,38 @@ function teRecompute(){
   }
 
   _teResult={ticker:_teTicker,entry,stop,target:profitGoal>0&&shares>0?parseFloat((entry+profitGoal/shares).toFixed(2)):t2,qty:shares,riskPerShare,atr:_teATR.toFixed(3),invested:actualInvested};
+
+  // ── LOSS LIMIT CALCULATION — user enters max $ loss → show stop-sell price ──
+  const lossLimit=parseFloat(document.getElementById('te-loss-limit').value)||0;
+  const lossCard=document.getElementById('te-loss-card');
+  if(lossLimit>0&&shares>0){
+    lossCard.style.display='block';
+    const lossPerShare=parseFloat((lossLimit/shares).toFixed(4));
+    const lossStop=parseFloat((entry-lossPerShare).toFixed(2));
+    document.getElementById('te-loss-amount').textContent='$'+lossLimit.toFixed(0);
+    document.getElementById('te-loss-stop').textContent='Sell at $'+lossStop.toFixed(2);
+    document.getElementById('te-loss-breakdown').textContent=
+      shares+' shares × -$'+lossPerShare.toFixed(2)+'/share = -$'+lossLimit.toFixed(2)+' max loss';
+    // Compare with ATR stop
+    if(lossStop>stop){
+      document.getElementById('te-loss-vs-atr').innerHTML=
+        '⚠ <span style="color:var(--amber);">Loss stop $'+lossStop.toFixed(2)+' is tighter than ATR stop $'+stop.toFixed(2)+'</span> — you may get stopped out by normal volatility. Consider increasing your max loss or reducing shares.';
+    } else if(lossStop<stop){
+      document.getElementById('te-loss-vs-atr').innerHTML=
+        '✓ <span style="color:var(--green);">Loss stop $'+lossStop.toFixed(2)+' is wider than ATR stop $'+stop.toFixed(2)+'</span> — ATR stop will trigger first and keep your loss smaller.';
+    } else {
+      document.getElementById('te-loss-vs-atr').innerHTML=
+        '✓ <span style="color:var(--green);">Loss stop matches ATR stop exactly.</span>';
+    }
+  } else if(lossLimit>0&&shares===0){
+    lossCard.style.display='block';
+    document.getElementById('te-loss-amount').textContent='$'+lossLimit.toFixed(0);
+    document.getElementById('te-loss-stop').textContent='Enter shares';
+    document.getElementById('te-loss-breakdown').textContent='Need investment amount to calculate stop price';
+    document.getElementById('te-loss-vs-atr').textContent='';
+  } else {
+    lossCard.style.display='none';
+  }
 
   // ── TARGET PRICE CALCULATION ──────────────────────────────
   const targetPrice=parseFloat(document.getElementById('te-target-price').value)||0;
